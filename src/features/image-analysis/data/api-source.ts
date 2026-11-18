@@ -10,7 +10,7 @@ import { fromBackendCategory, toConfidenceLevel, toPrecision } from "@/lib/api/m
 import { getWorldDataSource } from "@/features/world/data/source";
 import { placesFromAnalysis } from "../place-matching";
 import { fitForUpload, PICKABLE_LIMIT, PROXY_UPLOAD_LIMIT } from "../shrink-image";
-import type { AnalysisJob, Detection, JobStatus, LocationMatch } from "../types";
+import { NOT_GTA, type AnalysisJob, type Detection, type JobStatus, type LocationMatch } from "../types";
 import { UploadCancelledError, type AnalysisDataSource } from "./source";
 
 type BackendDetection = {
@@ -45,10 +45,10 @@ type BackendAnalysis = {
   entities: BackendDetection[];
 };
 
-/** completed_partial still has results; cancelled is as final as failed. */
+/** completed_partial still has results; cancelled and rejected (not a GTA VI screenshot) are as final as failed. */
 function toJobStatus(status: string): JobStatus {
   if (status === "completed" || status === "completed_partial") return "completed";
-  if (status === "failed" || status === "cancelled") return "failed";
+  if (status === "failed" || status === "cancelled" || status === "rejected") return "failed";
   if (status === "processing") return "processing";
   return "queued";
 }
@@ -181,7 +181,7 @@ export async function createApiAnalysisSource(): Promise<AnalysisDataSource> {
       };
       if (status === "failed") {
         result.error = {
-          code: job.status === "cancelled" ? "cancelled" : "analysis_failed",
+          code: job.status === "cancelled" ? "cancelled" : job.status === "rejected" ? NOT_GTA : "analysis_failed",
           message: job.error || "The analysis didn't finish. Try again.",
         };
       }

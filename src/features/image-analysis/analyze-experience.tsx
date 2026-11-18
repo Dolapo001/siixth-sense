@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import type { AnalysisDataSource } from "./data/source";
 import { useAnalysisSource, useScreenshotAnalysis } from "./hooks";
 import { displayStatus } from "./state";
+import { NOT_GTA } from "./types";
 
 export function AnalyzeExperience() {
   const source = useAnalysisSource();
@@ -176,7 +177,7 @@ function Workspace({ source }: { source: AnalysisDataSource }) {
 
           {job?.status === "failed" && (
             <ErrorState
-              title="Analysis failed"
+              title={job.error?.code === NOT_GTA ? "Not a GTA VI screenshot" : "Analysis failed"}
               description={job.error?.message ?? "The analysis service couldn't process this screenshot."}
               className="py-6"
             />

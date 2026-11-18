@@ -40,6 +40,9 @@ export type LocationMatch = {
   basis?: string;
 };
 
+/** Error code for a screenshot the service found isn't from GTA VI: final, and it can't be published. */
+export const NOT_GTA = "not_gta";
+
 export type AnalysisJob = {
   id: string;
   status: JobStatus;

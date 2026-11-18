@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AnalysisDataSource } from "./data/source";
-import type { AnalysisJob } from "./types";
+import { NOT_GTA, type AnalysisJob } from "./types";
 
 /*
  * End-to-end flow against a fake service we control: the page must show
@@ -12,6 +12,7 @@ import type { AnalysisJob } from "./types";
 
 let reported: AnalysisJob["status"] = "queued";
 let uploadFails = false;
+let reportedError: AnalysisJob["error"];
 
 const fakeSource: AnalysisDataSource = {
   kind: "sample",
@@ -24,7 +25,7 @@ const fakeSource: AnalysisDataSource = {
   },
   async getJob(jobId) {
     const base = { id: jobId, submittedAt: "2026-11-17T00:00:00Z", detections: [], locationMatches: [] };
-    if (reported !== "completed") return { ...base, status: reported };
+    if (reported !== "completed") return { ...base, status: reported, error: reportedError };
     return {
       ...base,
       status: "completed",
@@ -105,6 +106,18 @@ describe("Analyze flow", () => {
     await userEvent.click(screen.getByRole("button", { name: "Analyze screenshot" }));
     expect(await screen.findByRole("heading", { name: "Analysis failed" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analyze another screenshot" })).toBeInTheDocument();
+  });
+
+  it("says so when the screenshot isn't from GTA VI", async () => {
+    reported = "failed";
+    reportedError = { code: NOT_GTA, message: "This doesn't look like a GTA VI screenshot. It's a photo of a cat." };
+    uploadFails = false;
+    renderPage();
+    await choose();
+    await userEvent.click(screen.getByRole("button", { name: "Analyze screenshot" }));
+    expect(await screen.findByRole("heading", { name: "Not a GTA VI screenshot" })).toBeInTheDocument();
+    expect(screen.getByText(/photo of a cat/)).toBeInTheDocument();
+    reportedError = undefined;
   });
 
   it("offers a retry when the upload itself fails", async () => {

@@ -12,6 +12,7 @@ import { gtadbTileToMapLibre } from "./gta-projection";
 import { defaultLayers, layerForTags } from "./layers";
 import { filterByLayers, filterMarkers, markerKind, searchWorld, splitByPlacement } from "./markers";
 import { boundsOf, countByArea, neighbourhoodsOf, placesToGeoJSON } from "./places";
+import { staticMapSnippet } from "./static-map";
 import { discoveryCategories, type Region, type WorldBounds, type WorldMarker } from "./types";
 import { locationHref, selectedLocationFromPath } from "./routing";
 
@@ -236,5 +237,22 @@ describe("layers and search (GTA VI data)", () => {
   it("labels markers by layer when they have one", () => {
     expect(markerKind(places[0]).label).toBe("Hotels & leisure");
     expect(markerKind(marker({})).label).toBe("Vehicle");
+  });
+});
+
+describe("static map snippets", () => {
+  it("covers the requested box with tiles and centres the point", () => {
+    const snippet = staticMapSnippet({ x: 1409.4, y: 2803.2 }, { width: 900, aspect: 16 / 9 });
+    expect(snippet.point).toEqual({ left: 50, top: 50 });
+    // Tiles start at or before the box's top-left and reach past its bottom-right.
+    expect(Math.min(...snippet.tiles.map((t) => t.left))).toBeLessThanOrEqual(0);
+    expect(Math.min(...snippet.tiles.map((t) => t.top))).toBeLessThanOrEqual(0);
+    expect(Math.max(...snippet.tiles.map((t) => t.left + t.width))).toBeGreaterThanOrEqual(100);
+    expect(Math.max(...snippet.tiles.map((t) => t.top + t.height))).toBeGreaterThanOrEqual(100);
+  });
+
+  it("uses the same tile grid as the map: the origin tile at zoom 17 is 65536/65536", () => {
+    const snippet = staticMapSnippet({ x: 10, y: -10 }, { width: 100, aspect: 1, maxTiles: 4 });
+    expect(snippet.tiles.some((t) => t.src.endsWith("/17/65536/65536.jpg"))).toBe(true);
   });
 });

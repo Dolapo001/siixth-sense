@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Link2, MapPin } from "lucide-react";
+import { ArrowLeft, ExternalLink, Link2 } from "lucide-react";
 import { DiscoveryRow, formatDate } from "@/components/discoveries/discovery-items";
 import { ScreenshotThumb } from "@/components/discoveries/screenshot-thumb";
 import { VerificationTimeline } from "@/components/discoveries/verification-timeline";
 import { PageContainer } from "@/components/layout/page-header";
 import { ConfidenceLabel } from "@/components/shared/confidence-label";
-import { LocationPrecisionBadge } from "@/components/shared/location-precision";
 import { EmptyState, ErrorState, LoadingState, UnavailableState } from "@/components/shared/states";
 import { VerificationBadge } from "@/components/shared/verification-badge";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +21,9 @@ import {
   VerifyPanel,
 } from "@/features/community/discovery-sections";
 import { categoryConfig } from "@/features/world/categories";
-import { locationHref } from "@/features/world/routing";
 import type { DiscoveryDataSource } from "./data/source";
 import { useDiscovery, useDiscoverySource } from "./hooks";
+import { DiscoveryLocationCard, DiscoverySources } from "./discovery-context";
 import type { DiscoveryDetail } from "./types";
 
 function BackLink() {
@@ -188,24 +187,11 @@ function Detail({ discovery, source }: { discovery: DiscoveryDetail; source: Dis
           </SideCard>
 
           <SideCard title="Location">
-            {discovery.location ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1">
-                  <p className="text-body font-semibold">{discovery.location.name}</p>
-                  <p className="text-small text-muted">{discovery.location.regionName ?? "Region unknown"}</p>
-                </div>
-                <LocationPrecisionBadge precision={discovery.location.precision} className="self-start" />
-                <Link
-                  href={locationHref(discovery.location.locationId)}
-                  className={buttonStyles({ variant: "secondary", size: "sm", className: "self-start" })}
-                >
-                  <MapPin aria-hidden />
-                  View on map
-                </Link>
-              </div>
-            ) : (
-              <p className="text-small text-muted">Where this was found is unknown.</p>
-            )}
+            <DiscoveryLocationCard discovery={discovery} />
+          </SideCard>
+
+          <SideCard title="Sources">
+            <DiscoverySources discovery={discovery} />
           </SideCard>
 
           <SideCard title="On-chain attestation">

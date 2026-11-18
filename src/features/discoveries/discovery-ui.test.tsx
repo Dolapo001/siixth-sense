@@ -139,7 +139,7 @@ describe("DiscoveryDetailView", () => {
     expect(await screen.findByRole("heading", { name: "Sample discovery 1", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("Sample vehicle 1")).toBeInTheDocument();
     expect(screen.getByText("Sixth Sense analysis")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View on map" })).toHaveAttribute("href", "/world/sample-01");
+    expect(screen.getByRole("link", { name: /Open in the World Explorer/ })).toHaveAttribute("href", "/world/sample-01");
     expect(screen.getByText("Not recorded on-chain.")).toBeInTheDocument();
     expect(screen.getByText(/doesn't prove the\s+discovery is correct/)).toBeInTheDocument();
   });
@@ -162,8 +162,8 @@ describe("DiscoveryDetailView", () => {
   it("handles a discovery with no known location", async () => {
     detailResult = detail({ location: null });
     withQuery(<DiscoveryDetailView id="d1" />);
-    expect(await screen.findByText("Where this was found is unknown.")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "View on map" })).not.toBeInTheDocument();
+    expect(await screen.findByText(/No location yet/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Open in the World Explorer/ })).not.toBeInTheDocument();
   });
 
   it("says when a discovery doesn't exist", async () => {

@@ -1,17 +1,36 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { getLocationDetail } from "@/features/world/data/gtadb.server";
 import { publicPage } from "@/lib/seo";
 
-// Titles come from location data once the backend exists; until then the URL is enough for a canonical.
+/** Titles and descriptions from the place itself, e.g. "Vice Regal · Sixth Sense". */
 export async function generateMetadata({ params }: PageProps<"/world/[locationId]">): Promise<Metadata> {
   const { locationId } = await params;
+  const location = getLocationDetail(decodeURIComponent(locationId));
   return publicPage({
-    title: "Location",
-    description: "A location in the world of GTA VI, with its discoveries and verification status.",
+    title: location?.name ?? "Location",
+    description: location
+      ? `${location.description} On the GTA VI map of Leonida.`
+      : "A location in the world of GTA VI, with its discoveries and verification status.",
     path: `/world/${encodeURIComponent(locationId)}`,
   });
 }
 
-// Rendered by ../layout.tsx, which reads the location id from the URL and opens its panel.
-export default function LocationPage() {
+/**
+ * Marks the route as request-time so its metadata (which reads the URL) can
+ * stream. The page draws nothing: ../layout.tsx renders the explorer and
+ * opens the location's panel from the URL.
+ */
+async function RequestTime() {
+  await connection();
   return null;
+}
+
+export default function LocationPage() {
+  return (
+    <Suspense>
+      <RequestTime />
+    </Suspense>
+  );
 }

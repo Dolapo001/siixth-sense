@@ -6,24 +6,42 @@
  */
 
 import { createHmac, createPublicKey, randomBytes, timingSafeEqual, verify } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import bs58 from "bs58";
 import { shortAddress } from "@/lib/utilities/solana";
 import type { Contributor } from "@/features/discoveries/types";
 
 let devSecret: Buffer | null = null;
 
-/** AUTH_SECRET signs the cookies. Development falls back to a per-process secret (sessions reset on restart). */
+/**
+ * Development only, when AUTH_SECRET is unset: a random secret kept in
+ * .cache/dev-auth-secret (git-ignored). It has to live on disk, not in memory:
+ * the dev server compiles each API route separately, so in-memory state isn't
+ * shared between the challenge and verify routes.
+ */
+function developmentSecret(): Buffer {
+  if (devSecret) return devSecret;
+  const file = join(process.cwd(), ".cache", "dev-auth-secret");
+  try {
+    devSecret = Buffer.from(readFileSync(file, "utf8").trim(), "base64");
+  } catch {
+    devSecret = randomBytes(32);
+    mkdirSync(join(process.cwd(), ".cache"), { recursive: true });
+    writeFileSync(file, devSecret.toString("base64"), { mode: 0o600 });
+    console.warn("AUTH_SECRET isn't set; created a development secret in .cache/dev-auth-secret.");
+  }
+  return devSecret;
+}
+
+/** AUTH_SECRET signs the cookies. Required in production; development falls back to a local secret. */
 function secret(): Buffer {
   const value = process.env.AUTH_SECRET;
   if (value && value.length >= 32) return Buffer.from(value);
   if (process.env.NODE_ENV === "production") {
     throw new Error("AUTH_SECRET must be set (at least 32 characters) to sign players in.");
   }
-  if (!devSecret) {
-    devSecret = randomBytes(32);
-    console.warn("AUTH_SECRET isn't set; using a temporary development secret. Sessions end when the server restarts.");
-  }
-  return devSecret;
+  return developmentSecret();
 }
 
 const b64url = (data: Buffer | string) => Buffer.from(data).toString("base64url");

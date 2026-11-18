@@ -138,7 +138,7 @@ describe("VotePanel", () => {
 
   it("asks signed-out users to sign in instead of showing dead buttons", () => {
     render(<VotePanel viewer={null} onVote={vi.fn()} pending={false} error={null} />);
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/auth/login");
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", expect.stringMatching(/^\/auth\/login/));
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 

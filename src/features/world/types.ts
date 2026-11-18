@@ -12,11 +12,18 @@ export type WorldCoordinate = { x: number; y: number };
 /** Extent of the game-world coordinate system. */
 export type WorldBounds = { minX: number; minY: number; maxX: number; maxY: number };
 
+/**
+ * What a discovery is about. Frontend vocabulary until the backend publishes
+ * its category definitions; map those onto these ids in lib/api. ("event" is
+ * shown as "Activity".)
+ */
 export const discoveryCategories = [
   "location",
+  "landmark",
   "vehicle",
   "character",
   "wildlife",
+  "collectible",
   "object",
   "event",
   "hidden",

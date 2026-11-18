@@ -8,6 +8,7 @@
 
 import { getSession, SAMPLE_VIEWER } from "@/features/authentication/session";
 import { getSampleWorld } from "@/features/world/data/mock-source";
+import type { Region } from "@/features/world/types";
 import type { VerificationStatus } from "@/types/intelligence";
 import { PAGE_SIZE, type DiscoveryQuery } from "../query";
 import type {
@@ -36,9 +37,43 @@ const contributors: Contributor[] = Array.from({ length: 8 }, (_, i) => ({
   displayName: `Sample User ${i + 1}`,
 }));
 
+/**
+ * Real named places from the GTA VI community map (gtadb ids), so sample
+ * discoveries sit somewhere real and their maps and "Open in the World
+ * Explorer" links work. Which place a sample discovery is at is arbitrary.
+ */
+const samplePlaces = [
+  { id: "L130", name: "Pegassi Residences South Tower", areas: ["Tequesta Retreat", "Vice City"] },
+  { id: "L1", name: "Vice Regal", areas: ["Washington Beach", "Vice Beach"] },
+  { id: "L13", name: "Albany Hotel", areas: ["Washington Beach", "Vice Beach"] },
+  { id: "L281", name: "Gellhorn International Raceway", areas: ["Port Gellhorn"] },
+  { id: "L283", name: "Gas Stop", areas: ["Port Gellhorn"] },
+  { id: "L399", name: "Sugar Mill", areas: ["Allied Crystal", "Ambrosia"] },
+  { id: "L266", name: "Jason's House", areas: ["Key Lento"] },
+  { id: "L257", name: "Beacon", areas: ["Hamlet"] },
+  { id: "L258", name: "Rattlers", areas: ["Hamlet"] },
+  { id: "L265", name: "Sunrise RV Park", areas: ["Mariana County"] },
+  { id: "L278", name: "Warehouse", areas: ["Kelly County"] },
+  { id: "L151", name: "Redwood Suites", areas: ["Rialto Islands"] },
+  { id: "L422", name: "Rivo Bridge", areas: ["Rialto Islands"] },
+  { id: "L161", name: "Arrow Gas Station", areas: ["Waning Sands"] },
+  { id: "L393", name: "Bite House", areas: ["Watson Bay"] },
+  { id: "L544", name: "Watson Bay Water Tower", areas: ["Watson Bay"] },
+  { id: "L530", name: "Mount Kalaga", areas: ["Lummox County"] },
+  { id: "L533", name: "Leaf Links Golf Club", areas: ["Vice-Dale County"] },
+  { id: "L1064", name: "Capri City Jackals Stadium", areas: ["Capri"] },
+  { id: "L445", name: "Presidential Bunker", areas: ["Leonard County"] },
+];
+
+const areaId = (area: string) => area.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+/** The areas sample discoveries sit in, for the feed's area filter. (The filter doesn't use bounds.) */
+const sampleAreas: Region[] = [...new Set(samplePlaces.map((place) => place.areas.at(-1)!))]
+  .sort()
+  .map((name) => ({ id: areaId(name), name, bounds: { minX: 0, minY: 0, maxX: 0, maxY: 0 } }));
+
 function buildSampleDiscoveries() {
-  const { regions, locations } = getSampleWorld();
-  const regionName = (id: string | null) => regions.find((r) => r.id === id)?.name ?? null;
+  const { locations } = getSampleWorld();
   const items: DiscoveryListItem[] = [];
 
   for (const location of locations.values()) {
@@ -55,13 +90,16 @@ function buildSampleDiscoveries() {
         location:
           location.precision === "unknown"
             ? null
-            : {
-                locationId: location.id,
-                name: location.name,
-                regionId: location.regionId,
-                regionName: regionName(location.regionId),
-                precision: location.precision,
-              },
+            : (() => {
+                const place = samplePlaces[h % samplePlaces.length];
+                return {
+                  locationId: place.id,
+                  name: place.name,
+                  regionId: areaId(place.areas.at(-1)!),
+                  regionName: place.areas.at(-1)!,
+                  precision: "approximate" as const,
+                };
+              })(),
         screenshot: null,
         engagement: { comments: h % 9, confirmations: (h >>> 4) % 14 },
       });
@@ -306,7 +344,7 @@ export function createMockDiscoverySource(): DiscoveryDataSource {
       return item ? detailFor(item, session?.user ?? null) : null;
     },
     async listRegions() {
-      return getSampleWorld().regions;
+      return sampleAreas;
     },
 
     async addComment(discoveryId, body) {

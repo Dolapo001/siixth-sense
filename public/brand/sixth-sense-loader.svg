@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img">
+<title>Loading</title>
+<style>
+path{animation:ray 1.6s ease-in-out infinite;opacity:.3}
+path:nth-of-type(1){animation-delay:0s}
+path:nth-of-type(2){animation-delay:0.2s}
+path:nth-of-type(3){animation-delay:0.4s}
+path:nth-of-type(4){animation-delay:0.6s}
+path:nth-of-type(5){animation-delay:0.8s}
+path:nth-of-type(6){animation-delay:1s}
+path:nth-of-type(7){animation-delay:1.2s}
+path:nth-of-type(8){animation-delay:1.4s}
+@keyframes ray{0%,100%{opacity:.3}25%{opacity:1}}
+@media (prefers-reduced-motion:reduce){path{animation:none;opacity:1}}
+</style>
+<path fill="#55D6D0" d="M24 24L22.62 20.67L24 2L25.38 20.67Z"/>
+<path fill="#55D6D0" d="M24 24L25.38 20.67L36.02 11.98L27.33 22.62Z"/>
+<path fill="#55D6D0" d="M24 24L27.33 22.62L44 24L27.33 25.38Z"/>
+<path fill="#55D6D0" d="M24 24L27.33 25.38L36.02 36.02L25.38 27.33Z"/>
+<path fill="#55D6D0" d="M24 24L25.38 27.33L24 46L22.62 27.33Z"/>
+<path fill="#55D6D0" d="M24 24L22.62 27.33L11.98 36.02L20.67 25.38Z"/>
+<path fill="#55D6D0" d="M24 24L20.67 25.38L4 24L20.67 22.62Z"/>
+<path fill="#55D6D0" d="M24 24L20.67 22.62L11.98 11.98L22.62 20.67Z"/>
+</svg>

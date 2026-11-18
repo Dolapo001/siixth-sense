@@ -1,0 +1,6 @@
+allowBuilds:
+  # Optional native speed-ups for WebSocket (pulled in by @solana/web3.js). Not needed.
+  bufferutil: false
+  sharp: false
+  unrs-resolver: false
+  utf-8-validate: false

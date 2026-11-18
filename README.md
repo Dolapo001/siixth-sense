@@ -34,6 +34,7 @@ Copy `.env.example` to `.env.local` to configure the API base URL, site URL and 
 | `pnpm typecheck` | Route type generation + `tsc` |
 | `pnpm test` | Vitest |
 | `pnpm brand:assets` | Regenerates `public/brand/*.svg` and the favicon from the logo geometry |
+| `pnpm map:sync` | Pulls the pinned GTA VI community map (gtadb.org, CC BY 4.0): tiles to `public/tiles/gta6` and the landmark snapshot. `pnpm build` runs it; run it once before `pnpm dev` to see the map. |
 
 ## Stack
 

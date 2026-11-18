@@ -31,6 +31,9 @@ export function LocationDetails({ location, region }: { location: LocationDetail
           {location.coordinate ? formatCoordinate(location.coordinate) : "No coordinate"}
           {location.precision === "approximate" && location.radius ? ` · ±${location.radius} units` : ""}
         </p>
+        {location.nameKnown === false && (
+          <p className="text-meta text-muted">In-game name not confirmed yet. This name may change.</p>
+        )}
         <p className="text-small">{location.description}</p>
         {location.realWorldCounterpart && (
           <p className="text-small text-muted">

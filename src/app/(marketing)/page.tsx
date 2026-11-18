@@ -7,6 +7,7 @@ import { DiscoveryGallery } from "@/components/landing/discovery-gallery";
 import { Hero } from "@/components/landing/hero";
 import { LeaderboardPreview } from "@/components/landing/leaderboard-preview";
 import { MapPreview } from "@/components/landing/map-preview";
+import { getPreviewPlaces, getPreviewTiles, PREVIEW_ASPECT } from "@/features/landing/leonida-preview.server";
 import { Reveal } from "@/components/landing/reveal";
 import { ScannerShowcase } from "@/components/landing/scanner-section";
 import { SectionHeading } from "@/components/landing/section-heading";
@@ -74,7 +75,7 @@ export default function HomePage() {
             id="explore-title"
             eyebrow="Explore Leonida"
             title="Every corner has a story."
-            description="Navigate the world, explore locations and uncover discoveries contributed by the community."
+            description="From Vice Beach hotels to Port Gellhorn and the Keys: thousands of places mapped by the GTA VI community, each linked to what's known about it."
           />
           <Reveal delay={0.1}>
             <Link href="/world" className={buttonStyles({ size: "lg" })}>
@@ -84,7 +85,7 @@ export default function HomePage() {
           </Reveal>
         </div>
         <Reveal>
-          <MapPreview />
+          <MapPreview places={getPreviewPlaces()} tiles={getPreviewTiles()} aspect={PREVIEW_ASPECT} />
         </Reveal>
       </Section>
 

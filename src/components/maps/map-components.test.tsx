@@ -80,8 +80,10 @@ describe("MapLegend", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Hidden discoveries")).toBeVisible();
-    expect(screen.getByText(/Approximate/)).toBeVisible();
+    expect(screen.getByText("Landmarks")).toBeVisible();
+    // Layers that need Sixth Sense data are listed as not yet available, not drawn.
+    expect(screen.getByText("Vehicle sightings")).toBeVisible();
+    expect(screen.getByText(/community-placed and unofficial/)).toBeVisible();
   });
 });
 
@@ -149,6 +151,6 @@ describe("LocationDetails", () => {
       />,
     );
     expect(screen.getByText("No coordinate")).toBeInTheDocument();
-    expect(screen.getByText("Region unknown")).toBeInTheDocument();
+    expect(screen.getByText("Area unknown")).toBeInTheDocument();
   });
 });

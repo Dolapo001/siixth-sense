@@ -357,3 +357,39 @@
 .ss-page-in {
   animation: ss-page-in 0.25s var(--ease-out-expo) both;
 }
+
+/*
+ * MapLibre UI on the World map (place-layers.tsx, world-map.tsx). Its stylesheet
+ * is light-themed and loads after ours, so these selectors are deliberately
+ * more specific than MapLibre's own.
+ */
+.maplibregl-popup.ss-map-label .maplibregl-popup-content {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: rgb(17 26 37 / 0.95);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+}
+
+.maplibregl-popup.ss-map-label .maplibregl-popup-tip {
+  display: none;
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib,
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact {
+  background-color: rgb(11 16 24 / 0.85);
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib a {
+  color: var(--color-fg);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}

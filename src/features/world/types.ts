@@ -1,4 +1,5 @@
 import type { LocationPrecision, VerificationStatus } from "@/types/intelligence";
+import type { WorldLayerId } from "./layers";
 
 /*
  * World Explorer domain types. These are the frontend's shape; the backend
@@ -44,6 +45,12 @@ export type WorldMarker = {
   radius?: number;
   regionId: string | null;
   verification: VerificationStatus;
+  /** Map layer (kind of place), when the source classifies it. */
+  layer?: WorldLayerId;
+  /** Areas it sits in, nearest first. Searchable. */
+  areas?: string[];
+  /** False when the title is descriptive because the in-game name isn't known yet. */
+  nameKnown?: boolean;
 };
 
 export type DiscoverySummary = {
@@ -73,6 +80,8 @@ export type LocationDetail = {
   tags?: string[];
   /** The real place this one is modelled on, when the source records it. */
   realWorldCounterpart?: string | null;
+  /** False when the name is descriptive because the in-game name isn't known yet. */
+  nameKnown?: boolean;
   /** Where this record comes from, when it isn't Sixth Sense's own data. Shown with the licence. */
   source?: DataSource;
 };

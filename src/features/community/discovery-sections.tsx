@@ -2,36 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ExternalLink,
-  Flag,
-  Lightbulb,
-  Plus,
-  UserCheck,
-  UserPlus,
-} from "lucide-react";
+import { ExternalLink, Flag, Lightbulb, Plus, UserCheck, UserPlus } from "lucide-react";
 import { ActionError, SignInPrompt } from "@/components/community/action-bits";
 import { CommentForm } from "@/components/community/comment-form";
-import {
-  AddEvidenceDialog,
-  ReportDialog,
-  SuggestIdentificationDialog,
-} from "@/components/community/community-dialogs";
+import { AddEvidenceDialog, ReportDialog, SuggestIdentificationDialog } from "@/components/community/community-dialogs";
 import { VotePanel } from "@/components/community/vote-panel";
 import { formatDate } from "@/components/discoveries/discovery-items";
 import { Button } from "@/components/ui/button";
-import type {
-  DiscoveryDetail,
-  ReportTarget,
-} from "@/features/discoveries/types";
+import type { DiscoveryDetail, ReportTarget } from "@/features/discoveries/types";
 import { categoryConfig } from "@/features/world/categories";
 import { actionErrorMessage, type useDiscoveryActions } from "./hooks";
 
 type Actions = ReturnType<typeof useDiscoveryActions>;
 type SectionProps = { discovery: DiscoveryDetail; actions: Actions };
 
-const errorOf = (mutation: { error: unknown }) =>
-  mutation.error ? actionErrorMessage(mutation.error) : null;
+const errorOf = (mutation: { error: unknown }) => (mutation.error ? actionErrorMessage(mutation.error) : null);
 
 /** Evidence links come from other users: only render http(s), never javascript:, data: and the like. */
 function isWebUrl(url: string) {
@@ -42,13 +27,7 @@ function isWebUrl(url: string) {
   }
 }
 
-function AuthorLink({
-  username,
-  displayName,
-}: {
-  username: string;
-  displayName: string;
-}) {
+function AuthorLink({ username, displayName }: { username: string; displayName: string }) {
   return (
     <Link
       href={`/profile/${username}`}
@@ -76,23 +55,14 @@ export function EvidenceSection({ discovery, actions }: SectionProps) {
   return (
     <div className="flex flex-col gap-3">
       {discovery.evidence.length === 0 ? (
-        <p className="text-small text-muted">
-          No supporting evidence has been added yet.
-        </p>
+        <p className="text-small text-muted">No supporting evidence has been added yet.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {discovery.evidence.map((item) => (
-            <li
-              key={item.id}
-              className="flex flex-col gap-1 border-l border-border pl-4"
-            >
+            <li key={item.id} className="flex flex-col gap-1 border-l border-border pl-4">
               <p className="text-meta text-muted">
-                {item.author ? (
-                  <AuthorLink {...item.author} />
-                ) : (
-                  "Sixth Sense analysis"
-                )}{" "}
-                · <time dateTime={item.at}>{formatDate(item.at)}</time>
+                {item.author ? <AuthorLink {...item.author} /> : "Sixth Sense analysis"} ·{" "}
+                <time dateTime={item.at}>{formatDate(item.at)}</time>
               </p>
               <p className="text-small">{item.text}</p>
               {item.url && isWebUrl(item.url) && (
@@ -116,12 +86,7 @@ export function EvidenceSection({ discovery, actions }: SectionProps) {
       ) : (
         viewer.canAddEvidence && (
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="self-start"
-              onClick={() => setOpen(true)}
-            >
+            <Button variant="secondary" size="sm" className="self-start" onClick={() => setOpen(true)}>
               <Plus aria-hidden />
               Add evidence
             </Button>
@@ -150,34 +115,22 @@ export function SuggestionsSection({ discovery, actions }: SectionProps) {
   return (
     <div className="flex flex-col gap-3">
       {discovery.suggestions.length === 0 ? (
-        <p className="text-small text-muted">
-          No one has suggested a different identification.
-        </p>
+        <p className="text-small text-muted">No one has suggested a different identification.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {discovery.suggestions.map((suggestion) => {
             const Icon = categoryConfig[suggestion.category].icon;
             return (
-              <li
-                key={suggestion.id}
-                className="flex flex-col gap-1 rounded-md border border-dashed border-border p-3"
-              >
+              <li key={suggestion.id} className="flex flex-col gap-1 rounded-md border border-dashed border-border p-3">
                 <p className="flex items-center gap-2 text-small font-medium">
                   <Icon aria-hidden className="size-4 text-muted" />
                   {suggestion.label}
-                  <span className="text-meta font-normal text-muted">
-                    {categoryConfig[suggestion.category].label}
-                  </span>
+                  <span className="text-meta font-normal text-muted">{categoryConfig[suggestion.category].label}</span>
                 </p>
-                {suggestion.note && (
-                  <p className="text-small text-muted">{suggestion.note}</p>
-                )}
+                {suggestion.note && <p className="text-small text-muted">{suggestion.note}</p>}
                 <p className="text-meta text-muted">
                   Suggested by <AuthorLink {...suggestion.author} /> ·{" "}
-                  <time dateTime={suggestion.at}>
-                    {formatDate(suggestion.at)}
-                  </time>{" "}
-                  · unverified
+                  <time dateTime={suggestion.at}>{formatDate(suggestion.at)}</time> · unverified
                 </p>
               </li>
             );
@@ -189,12 +142,7 @@ export function SuggestionsSection({ discovery, actions }: SectionProps) {
       ) : (
         viewer.canSuggest && (
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="self-start"
-              onClick={() => setOpen(true)}
-            >
+            <Button variant="secondary" size="sm" className="self-start" onClick={() => setOpen(true)}>
               <Lightbulb aria-hidden />
               Suggest a different identification
             </Button>
@@ -230,9 +178,7 @@ function useReporting(actions: Actions) {
         }
       }}
       subject={target?.kind ?? "discovery"}
-      onSubmit={({ reason, details }) =>
-        actions.report.mutateAsync({ target: target!, reason, details })
-      }
+      onSubmit={({ reason, details }) => actions.report.mutateAsync({ target: target!, reason, details })}
       pending={actions.report.isPending}
       error={errorOf(actions.report)}
     />
@@ -250,14 +196,10 @@ export function DiscussionSection({ discovery, actions }: SectionProps) {
       ) : (
         <ul className="flex flex-col gap-4">
           {discovery.comments.map((comment) => (
-            <li
-              key={comment.id}
-              className="group flex flex-col gap-1 border-l border-border pl-4"
-            >
+            <li key={comment.id} className="group flex flex-col gap-1 border-l border-border pl-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-meta text-muted">
-                  <AuthorLink {...comment.author} /> ·{" "}
-                  <time dateTime={comment.at}>{formatDate(comment.at)}</time>
+                  <AuthorLink {...comment.author} /> · <time dateTime={comment.at}>{formatDate(comment.at)}</time>
                 </p>
                 {viewer?.canReport && (
                   <button
@@ -267,10 +209,7 @@ export function DiscussionSection({ discovery, actions }: SectionProps) {
                   >
                     <Flag aria-hidden className="size-3" />
                     Report
-                    <span className="sr-only">
-                      {" "}
-                      comment by {comment.author.displayName}
-                    </span>
+                    <span className="sr-only"> comment by {comment.author.displayName}</span>
                   </button>
                 )}
               </div>
@@ -300,11 +239,7 @@ export function ReportDiscoveryButton({ discovery, actions }: SectionProps) {
   if (!discovery.viewer?.canReport) return null;
   return (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => report({ kind: "discovery", id: discovery.id })}
-      >
+      <Button variant="ghost" size="sm" onClick={() => report({ kind: "discovery", id: discovery.id })}>
         <Flag aria-hidden />
         Report
       </Button>
@@ -334,17 +269,9 @@ export function FollowButton({ discovery, actions }: SectionProps) {
         {following ? <UserCheck aria-hidden /> : <UserPlus aria-hidden />}
         {/* Visible text changes; the accessible name stays "Follow …" and aria-pressed carries the state. */}
         <span aria-hidden>{following ? "Following" : "Follow"}</span>
-        <span className="sr-only">
-          Follow {discovery.contributor.displayName}
-        </span>
+        <span className="sr-only">Follow {discovery.contributor.displayName}</span>
       </Button>
-      <ActionError
-        message={
-          actions.follow.isError
-            ? actionErrorMessage(actions.follow.error)
-            : null
-        }
-      />
+      <ActionError message={actions.follow.isError ? actionErrorMessage(actions.follow.error) : null} />
     </span>
   );
 }

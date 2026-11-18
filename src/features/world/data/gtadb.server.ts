@@ -10,6 +10,7 @@
  */
 
 import { GTA_TILE_BOUNDS } from "../gta-map-config";
+import { layerForTags } from "../layers";
 import type { DataSource, LocationDetail, Region, WorldBounds, WorldMarker } from "../types";
 import snapshot from "./gtadb-snapshot.json";
 
@@ -23,7 +24,20 @@ type SnapshotLandmark = {
   realWorld: string | null;
 };
 
-const landmarks = snapshot.landmarks as SnapshotLandmark[];
+/**
+ * gtadb marks guesses with "?": "Parsons Hotel?" is an unconfirmed name, "? (S)"
+ * an unknown one. Guessed names are kept without the "?" but flagged.
+ */
+function parseName(raw: string | null): { name: string | null; confirmed: boolean } {
+  if (!raw || raw.trimStart().startsWith("?")) return { name: null, confirmed: false };
+  if (!raw.includes("?")) return { name: raw, confirmed: true };
+  return { name: raw.replace(/\s*\?\s*/g, " ").trim(), confirmed: false };
+}
+
+const landmarks = (snapshot.landmarks as SnapshotLandmark[]).map((landmark) => {
+  const { name, confirmed } = parseName(landmark.name);
+  return { ...landmark, name, nameConfirmed: confirmed };
+});
 
 export const gtadbSource: DataSource = {
   name: "gtadb.org (GTA VI Landmarks Data)",
@@ -54,14 +68,43 @@ const broadestArea = (landmark: SnapshotLandmark) => {
   return area && area !== STATE ? area : null;
 };
 
-function kindOf(landmark: SnapshotLandmark) {
+function kindOf(landmark: { tags: string[] }) {
   return landmark.tags.find((tag) => !STATUS_TAGS.has(tag)) ?? "landmark";
 }
 
-function titleOf(landmark: SnapshotLandmark) {
+/** What to call a place by its kind when its in-game name isn't known yet. */
+const KIND_NOUNS: Record<string, string> = {
+  residential: "Residence",
+  retail: "Shop",
+  hotel: "Hotel",
+  leisure: "Leisure spot",
+  restaurant: "Restaurant",
+  fastfood: "Fast-food spot",
+  transportation: "Transport site",
+  natural: "Natural feature",
+  agriculture: "Farmland",
+  industrial: "Industrial site",
+  utilities: "Utility site",
+  construction: "Construction site",
+  government: "Government building",
+  public: "Public building",
+  events: "Event venue",
+  landmark: "Landmark",
+  office: "Office",
+  supermarket: "Supermarket",
+  recreation: "Recreation area",
+  service: "Service building",
+  "point-of-interest": "Point of interest",
+};
+
+/**
+ * The in-game name when the data has it; otherwise a descriptive name from the
+ * place's kind and nearest area ("Hotel, Ocean Beach"). Never an invented name.
+ */
+function titleOf(landmark: { name: string | null; tags: string[]; area: string[] }) {
   if (landmark.name) return landmark.name;
-  const kind = kindOf(landmark);
-  return `Unnamed ${kind}${landmark.area[0] ? ` · ${landmark.area[0]}` : ""}`;
+  const kind = landmark.tags.find((tag) => KIND_NOUNS[tag]);
+  return `${kind ? KIND_NOUNS[kind] : "Place"}, ${landmark.area[0] ?? "Leonida"}`;
 }
 
 /** Areas with enough placed landmarks to frame on the map; extents come from the landmarks themselves. */
@@ -122,6 +165,9 @@ const markers: WorldMarker[] = landmarks.map((landmark) => {
     coordinate,
     regionId: regionIdOf(landmark),
     verification: "awaiting_verification",
+    layer: layerForTags(landmark.tags),
+    areas: landmark.area.length ? landmark.area : undefined,
+    nameKnown: landmark.nameConfirmed,
   };
 });
 
@@ -159,6 +205,7 @@ export function getLocationDetail(id: string): LocationDetail | null {
     areas: landmark.area,
     tags: landmark.tags,
     realWorldCounterpart: landmark.realWorld,
+    nameKnown: landmark.nameConfirmed,
     source: gtadbSource,
   };
 }

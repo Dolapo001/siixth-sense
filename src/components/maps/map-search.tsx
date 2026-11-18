@@ -2,8 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { MapPinned, Search, X } from "lucide-react";
-import { categoryConfig } from "@/features/world/categories";
-import { searchWorld, type SearchResult } from "@/features/world/markers";
+import { markerKind, searchWorld, type SearchResult } from "@/features/world/markers";
 import type { Region, WorldMarker } from "@/features/world/types";
 import { cn } from "@/lib/utilities/cn";
 
@@ -46,7 +45,7 @@ export function MapSearch({ regions, markers, onSelect, className }: MapSearchPr
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={showList && results[active] ? `${listId}-${active}` : undefined}
-        placeholder="Search locations and regions"
+        placeholder="Search Leonida: places and areas"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -99,7 +98,9 @@ export function MapSearch({ regions, markers, onSelect, className }: MapSearchPr
           </li>
         ) : (
           results.map((result, i) => {
-            const Icon = result.kind === "region" ? MapPinned : categoryConfig[result.marker.category].icon;
+            const kind = result.kind === "region" ? { label: "Area", icon: MapPinned } : markerKind(result.marker);
+            const Icon = kind.icon;
+            const where = result.kind === "marker" ? result.marker.areas?.join(" · ") : null;
             return (
               <li
                 key={resultKey(result)}
@@ -111,14 +112,17 @@ export function MapSearch({ regions, markers, onSelect, className }: MapSearchPr
                 onClick={() => choose(result)}
                 onMouseEnter={() => setActive(i)}
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 px-3 py-2 text-small",
-                  i === active ? "bg-surface-elevated text-fg" : "text-muted",
+                  "flex cursor-pointer items-center gap-2.5 px-3 py-2 text-small",
+                  i === active ? "bg-surface-elevated text-fg" : "text-fg/85",
                 )}
               >
-                <Icon aria-hidden className="size-4 shrink-0" />
-                <span className="truncate">{result.kind === "region" ? result.region.name : result.marker.title}</span>
-                <span className="meta ml-auto shrink-0 text-muted">
-                  {result.kind === "region" ? "Region" : categoryConfig[result.marker.category].label}
+                <Icon aria-hidden className={cn("size-4 shrink-0", i === active ? "text-accent" : "text-muted")} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate">{result.kind === "region" ? result.region.name : result.marker.title}</span>
+                  <span className="truncate text-meta text-muted">
+                    {kind.label}
+                    {where ? ` · ${where}` : ""}
+                  </span>
                 </span>
               </li>
             );

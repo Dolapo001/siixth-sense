@@ -1,16 +1,16 @@
-import { GTA_NATIVE_MAX_ZOOM, GTA_NATIVE_MIN_ZOOM } from "./gta-projection";
+import { GTA_MAP_EXTENT, GTA_NATIVE_MAX_ZOOM, GTA_NATIVE_MIN_ZOOM } from "./gta-projection";
 import type { WorldBounds } from "./types";
 
 /*
  * The GTA VI base map: community tiles from gtadb.org (CC BY 4.0), self-hosted.
- * `pnpm map:sync` puts them in public/tiles/gta6 for development; production
- * reads them from object storage via NEXT_PUBLIC_MAP_TILES_URL (`pnpm map:sync --upload`).
+ * `pnpm map:sync` (also run by `pnpm build`) puts them in public/tiles/gta6, served
+ * as static files. NEXT_PUBLIC_MAP_TILES_URL can point elsewhere if they move to a CDN.
  */
 
 export const GTA_MAP_TILES_URL = (process.env.NEXT_PUBLIC_MAP_TILES_URL || "/tiles/gta6").replace(/\/$/, "");
 
-/** Area the tile set covers, in game metres (from its zoom-5 tile range). */
-export const GTA_TILE_BOUNDS: WorldBounds = { minX: -11_008, minY: -9_216, maxX: 10_240, maxY: 11_008 };
+/** Leonida, in game metres. Tiles are only requested here, and everything outside is masked. */
+export const GTA_TILE_BOUNDS: WorldBounds = GTA_MAP_EXTENT;
 
 export const GTA_TILE_ZOOM = { min: GTA_NATIVE_MIN_ZOOM, max: GTA_NATIVE_MAX_ZOOM };
 

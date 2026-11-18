@@ -13,6 +13,14 @@
  * Mercator's distortion is negligible; nothing here is real geography.
  */
 
+/**
+ * The part of the tile art that shows Leonida, in game metres. The art also
+ * carries a legend panel to the east (x ≳ 4,000 m) with credits and thumbnails
+ * of trailer frames; that is never synced or shown. Fits every placed landmark
+ * (x −9,832…3,147, y −8,000…8,897) with a margin of sea.
+ */
+export const GTA_MAP_EXTENT = { minX: -10_400, minY: -8_400, maxX: 3_800, maxY: 9_800 };
+
 /** gtadb zoom z ↔ MapLibre zoom z + ZOOM_OFFSET. */
 export const GTA_ZOOM_OFFSET = 12;
 

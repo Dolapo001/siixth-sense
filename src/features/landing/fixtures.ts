@@ -11,7 +11,7 @@
  */
 
 import type { DiscoveryCategory } from "@/features/world/types";
-import type { LocationPrecision, VerificationStatus } from "@/types/intelligence";
+import type { VerificationStatus } from "@/types/intelligence";
 
 export type LandingImage = { src: string; alt: string; width: number; height: number };
 
@@ -182,76 +182,6 @@ export const exampleDiscoveries: ExampleDiscovery[] = [
     focus: "55% 45%",
   },
 ];
-
-export type MapMarker = {
-  id: string;
-  category: DiscoveryCategory;
-  title: string;
-  region: string;
-  precision: LocationPrecision;
-  /** Position on the illustrative map, in its 1000×600 viewBox. */
-  x: number;
-  y: number;
-  /** Uncertainty radius (viewBox units) for approximate markers. */
-  radius?: number;
-};
-
-/** Markers on the landing page's illustrative map. Fictional places, example only. */
-export const mapMarkers: MapMarker[] = [
-  {
-    id: "m1",
-    category: "location",
-    title: "Bayfront tower",
-    region: "Harbor District",
-    precision: "confirmed",
-    x: 640,
-    y: 250,
-  },
-  {
-    id: "m2",
-    category: "vehicle",
-    title: "Coupe on the causeway",
-    region: "Harbor District",
-    precision: "approximate",
-    x: 560,
-    y: 330,
-    radius: 34,
-  },
-  {
-    id: "m3",
-    category: "wildlife",
-    title: "Flamingo colony",
-    region: "Southern Wetlands",
-    precision: "approximate",
-    x: 330,
-    y: 440,
-    radius: 46,
-  },
-  { id: "m4", category: "hidden", title: "Unlit lighthouse", region: "Keys", precision: "confirmed", x: 855, y: 482 },
-  { id: "m5", category: "event", title: "Night market", region: "Old Town", precision: "confirmed", x: 470, y: 205 },
-  {
-    id: "m6",
-    category: "object",
-    title: "Rusted cargo crate",
-    region: "Northern Inlands",
-    precision: "approximate",
-    x: 300,
-    y: 150,
-    radius: 40,
-  },
-  {
-    id: "m7",
-    category: "location",
-    title: "Pier and Ferris wheel",
-    region: "Harbor District",
-    precision: "confirmed",
-    x: 720,
-    y: 360,
-  },
-];
-
-/** A region-only report: listed, never pinned. */
-export const regionOnlyExample = { title: "Rumoured hidden garage", region: "Old Town" };
 
 export type ExampleRanking = {
   handle: string;

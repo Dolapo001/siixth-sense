@@ -9,7 +9,9 @@ import {
 } from "./coordinates";
 import { createMockWorldSource } from "./data/mock-source";
 import { gtadbTileToMapLibre } from "./gta-projection";
-import { createMarkerIndex, filterMarkers, searchWorld, splitByPlacement } from "./markers";
+import { defaultLayers, layerForTags } from "./layers";
+import { filterByLayers, filterMarkers, markerKind, searchWorld, splitByPlacement } from "./markers";
+import { boundsOf, countByArea, neighbourhoodsOf, placesToGeoJSON } from "./places";
 import { discoveryCategories, type Region, type WorldBounds, type WorldMarker } from "./types";
 import { locationHref, selectedLocationFromPath } from "./routing";
 
@@ -107,24 +109,38 @@ describe("markers", () => {
     expect(searchWorld("   ", regions, markers)).toEqual([]);
   });
 
-  it("clusters nearby markers when zoomed out and splits them when zoomed in", () => {
-    const close = [
-      marker({ id: "x", coordinate: { x: 5_000, y: 2_500 } }),
-      marker({ id: "y", coordinate: { x: 5_010, y: 2_505 } }),
-    ];
-    const index = createMarkerIndex(close, world);
-    const everywhere: [number, number, number, number] = [-1, -1, 1, 1];
-    const zoomedOut = index.getItems(everywhere, 8);
-    expect(zoomedOut).toHaveLength(1);
-    expect(zoomedOut[0]).toMatchObject({ type: "cluster", count: 2 });
-    const zoomedIn = index.getItems(everywhere, 16);
-    expect(zoomedIn.map((item) => item.type)).toEqual(["marker", "marker"]);
+  it("leaves unplaced markers out of the map's places source", () => {
+    const ids = placesToGeoJSON(markers).features.map((f) => f.properties.id);
+    expect(ids.sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("browse hierarchy", () => {
+  const place = (id: string, areas: string[], x = 0) =>
+    marker({ id, locationId: id, title: id, areas, coordinate: { x, y: 0 } });
+  const places = [
+    place("a", ["Washington Beach", "Vice Beach"], 0),
+    place("b", ["Washington Beach", "Vice Beach"], 100),
+    place("c", ["Ocean Beach", "Vice Beach"], 2_000),
+    place("d", ["Vice Beach"], 50),
+    place("e", ["Belville"], 9_000),
+  ];
+
+  it("groups an area's places by the next address level, biggest first, area-only places last", () => {
+    expect(neighbourhoodsOf(places, "Vice Beach").map((n) => [n.name, n.markers.length])).toEqual([
+      ["Washington Beach", 2],
+      ["Ocean Beach", 1],
+      ["Elsewhere in Vice Beach", 1],
+    ]);
   });
 
-  it("leaves unplaced markers out of the spatial index", () => {
-    const index = createMarkerIndex(markers, world);
-    const ids = index.getItems([-1, -1, 1, 1], 16).flatMap((item) => (item.type === "marker" ? [item.marker.id] : []));
-    expect(ids.sort()).toEqual(["a", "b"]);
+  it("counts places per area", () => {
+    expect(countByArea(places).get("Vice Beach")).toBe(4);
+  });
+
+  it("frames a group of places, at least a minimum size across", () => {
+    expect(boundsOf(places.slice(0, 2))).toEqual({ minX: -250, maxX: 350, minY: -300, maxY: 300 });
+    expect(boundsOf([])).toBeNull();
   });
 });
 
@@ -177,5 +193,48 @@ describe("mock world source", () => {
 
   it("returns null for unknown locations", async () => {
     expect(await createMockWorldSource().getLocation("does-not-exist")).toBeNull();
+  });
+});
+
+describe("layers and search (GTA VI data)", () => {
+  const place = (id: string, title: string, layer: WorldMarker["layer"], areas?: string[]) =>
+    marker({ id, locationId: id, title, layer, areas, category: "location" });
+  const places = [
+    place("a", "Vice Regal", "leisure", ["Washington Beach", "Vice Beach"]),
+    place("b", "Ocean View Hotel", "leisure", ["Ocean Beach", "Vice Beach"]),
+    place("c", "Port Gellhorn Pier", "landmarks", ["Port Gellhorn"]),
+    place("d", "Unnamed residential · Belville", "residential", ["Belville"]),
+  ];
+
+  it("assigns layers from landmark tags, untagged places to 'other'", () => {
+    expect(layerForTags(["hotel", "enterable"])).toBe("leisure");
+    expect(layerForTags(["transportation"])).toBe("transport");
+    expect(layerForTags(["unconfirmed"])).toBe("other");
+  });
+
+  it("starts with a useful subset of layers on, not everything", () => {
+    const on = defaultLayers();
+    expect(on.has("landmarks")).toBe(true);
+    expect(on.has("residential")).toBe(false);
+    expect(on.has("other")).toBe(false);
+  });
+
+  it("filters by enabled layers", () => {
+    expect(filterByLayers(places, new Set(["landmarks"])).map((m) => m.id)).toEqual(["c"]);
+  });
+
+  it("finds places by the areas they sit in, after name matches", () => {
+    const results = searchWorld("vice", [], places);
+    expect(results.map((r) => (r.kind === "marker" ? r.marker.id : r.region.id))).toEqual(["a", "b"]);
+  });
+
+  it("ranks names that start with the query first", () => {
+    const results = searchWorld("port", [], places);
+    expect(results[0]).toMatchObject({ kind: "marker", marker: { id: "c" } });
+  });
+
+  it("labels markers by layer when they have one", () => {
+    expect(markerKind(places[0]).label).toBe("Hotels & leisure");
+    expect(markerKind(marker({})).label).toBe("Vehicle");
   });
 });

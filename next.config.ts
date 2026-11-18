@@ -55,6 +55,11 @@ const nextConfig: NextConfig = {
       { source: "/:path*", headers: securityHeaders },
       // The MapLibre worker's filename carries its version, so it can be cached for good.
       { source: "/vendor/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+      // GTA map tiles change only when the pinned gtadb commit is bumped.
+      {
+        source: "/tiles/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+      },
     ];
   },
   // Common auth URLs people type, sent to the real routes under /auth.

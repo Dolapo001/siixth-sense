@@ -2,8 +2,7 @@
 
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { categoryConfig } from "@/features/world/categories";
-import { discoveryCategories } from "@/features/world/types";
+import { upcomingLayers, worldLayers } from "@/features/world/layers";
 import { cn } from "@/lib/utilities/cn";
 
 export function MapLegend({ defaultOpen = false }: { defaultOpen?: boolean }) {
@@ -22,33 +21,59 @@ export function MapLegend({ defaultOpen = false }: { defaultOpen?: boolean }) {
         Legend
         <ChevronDown aria-hidden className={cn("size-4 text-muted transition-transform", open && "rotate-180")} />
       </button>
-      <div id={panelId} hidden={!open} className="flex flex-col gap-3 border-t border-border px-3 py-3">
+      <div id={panelId} hidden={!open} className="border-t border-border px-3 py-3">
+        <LegendContent />
+      </div>
+    </div>
+  );
+}
+
+/** What the map's markers and layers mean. Also shown in a bottom sheet on phones. */
+export function LegendContent() {
+  return (
+    <div className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-1.5">
+        {worldLayers.map(({ id, label, icon: Icon }) => (
+          <li key={id} className="flex items-center gap-2 text-meta">
+            <Icon aria-hidden className="size-3.5 text-muted" />
+            {label}
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+        <p className="text-meta text-muted">Arrive with Sixth Sense data:</p>
         <ul className="flex flex-col gap-1.5">
-          {discoveryCategories.map((category) => {
-            const { plural, icon: Icon } = categoryConfig[category];
-            return (
-              <li key={category} className="flex items-center gap-2 text-meta">
-                <Icon aria-hidden className={cn("size-3.5", category === "hidden" ? "text-signal" : "text-muted")} />
-                {plural}
-              </li>
-            );
-          })}
-        </ul>
-        <ul className="flex flex-col gap-1.5 border-t border-border pt-3 text-meta">
-          <li className="flex items-center gap-2">
-            <span aria-hidden className="size-3.5 rounded-full border border-fg/70" />
-            Confirmed coordinate
-          </li>
-          <li className="flex items-center gap-2">
-            <span aria-hidden className="size-3.5 rounded-full border border-dashed border-fg/70" />
-            Approximate (dashed circle shows uncertainty)
-          </li>
-          <li className="flex items-center gap-2 text-muted">
-            <span aria-hidden className="size-3.5" />
-            Region-only and unknown locations are listed, not pinned
-          </li>
+          {upcomingLayers.map(({ label, icon: Icon }) => (
+            <li key={label} className="flex items-center gap-2 text-meta text-muted">
+              <Icon aria-hidden className="size-3.5" />
+              {label}
+            </li>
+          ))}
         </ul>
       </div>
+      <ul className="flex flex-col gap-1.5 border-t border-border pt-3 text-meta">
+        <li className="flex items-center gap-2">
+          <span aria-hidden className="size-3.5 rounded-full border-[1.5px] border-accent bg-surface-elevated" />
+          Landmark
+        </li>
+        <li className="flex items-center gap-2">
+          <span aria-hidden className="size-3.5 rounded-full border-[1.5px] border-border-strong bg-surface-elevated" />
+          Other place (icon shows its layer when zoomed in)
+        </li>
+        <li className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="flex size-3.5 items-center justify-center rounded-full border border-accent/60 text-[0.5rem]"
+          >
+            3
+          </span>
+          Group of places: click to zoom in
+        </li>
+        <li className="flex items-center gap-2 text-muted">
+          <span aria-hidden className="size-3.5" />
+          Positions are community-placed and unofficial
+        </li>
+      </ul>
     </div>
   );
 }

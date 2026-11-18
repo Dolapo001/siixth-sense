@@ -1,10 +1,25 @@
-import Supercluster from "supercluster";
-import { worldToLngLat } from "./coordinates";
-import type { DiscoveryCategory, Region, WorldBounds, WorldMarker } from "./types";
+import { categoryConfig } from "./categories";
+import { layerConfig, type WorldLayerId } from "./layers";
+import type { DiscoveryCategory, Region, WorldMarker } from "./types";
 
 /** Markers whose category is enabled. */
 export function filterMarkers(markers: WorldMarker[], categories: ReadonlySet<DiscoveryCategory>) {
   return markers.filter((marker) => categories.has(marker.category));
+}
+
+/** Markers on an enabled layer. Markers without a layer (sample data) count as "other". */
+export function filterByLayers(markers: WorldMarker[], layers: ReadonlySet<WorldLayerId>) {
+  return markers.filter((marker) => layers.has(marker.layer ?? "other"));
+}
+
+/** Icon and label for a marker: its layer when it has one, else its discovery category. */
+export function markerKind(marker: WorldMarker) {
+  if (marker.layer) {
+    const { label, icon } = layerConfig[marker.layer];
+    return { label, icon };
+  }
+  const { label, icon } = categoryConfig[marker.category];
+  return { label, icon };
 }
 
 /** Only confirmed and approximate markers can be placed on the map. */
@@ -21,54 +36,28 @@ export type SearchResult =
   | { kind: "region"; region: Region }
   | { kind: "marker"; marker: WorldMarker };
 
-/** Case-insensitive name search over regions and markers. Regions first. */
+/**
+ * Case-insensitive search over area names, place names and the areas places
+ * sit in ("washington beach" finds every place there). Ranked: areas, then
+ * names starting with the query, then names containing it, then area matches.
+ */
 export function searchWorld(query: string, regions: Region[], markers: WorldMarker[], limit = 8): SearchResult[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const regionHits: SearchResult[] = regions
-    .filter((region) => region.name.toLowerCase().includes(q))
-    .map((region) => ({ kind: "region", region }));
-  const markerHits: SearchResult[] = markers
-    .filter((marker) => marker.title.toLowerCase().includes(q))
-    .map((marker) => ({ kind: "marker", marker }));
+  const rank = (text: string) => (text.startsWith(q) ? 0 : text.includes(q) ? 1 : -1);
+  const regionHits = regions
+    .map((region) => ({ region, score: rank(region.name.toLowerCase()) }))
+    .filter((hit) => hit.score >= 0)
+    .sort((a, b) => a.score - b.score)
+    .map(({ region }): SearchResult => ({ kind: "region", region }));
+  const markerHits = markers
+    .map((marker) => {
+      const title = rank(marker.title.toLowerCase());
+      const inArea = marker.areas?.some((area) => area.toLowerCase().includes(q)) ? 2 : -1;
+      return { marker, score: title >= 0 ? title : inArea };
+    })
+    .filter((hit) => hit.score >= 0)
+    .sort((a, b) => a.score - b.score || a.marker.title.localeCompare(b.marker.title))
+    .map(({ marker }): SearchResult => ({ kind: "marker", marker }));
   return [...regionHits, ...markerHits].slice(0, limit);
-}
-
-type MarkerProps = { markerId: string };
-
-export type MapItem =
-  | { type: "cluster"; id: number; count: number; lngLat: [number, number] }
-  | { type: "marker"; marker: WorldMarker; lngLat: [number, number] };
-
-/** Spatial index for clustering. Rebuild when the marker set changes. */
-export function createMarkerIndex(markers: WorldMarker[], world: WorldBounds) {
-  const byId = new Map(markers.map((marker) => [marker.id, marker]));
-  const index = new Supercluster<MarkerProps, MarkerProps>({ radius: 56, maxZoom: 14 });
-  index.load(
-    markers
-      .filter((marker) => marker.coordinate)
-      .map((marker) => ({
-        type: "Feature" as const,
-        properties: { markerId: marker.id },
-        geometry: { type: "Point" as const, coordinates: worldToLngLat(marker.coordinate!) },
-      })),
-  );
-
-  return {
-    /** Clusters and single markers visible in a [west, south, east, north] box at a zoom level. */
-    getItems(bbox: [number, number, number, number], zoom: number): MapItem[] {
-      return index.getClusters(bbox, Math.floor(zoom)).flatMap((feature): MapItem[] => {
-        const lngLat = feature.geometry.coordinates as [number, number];
-        if ("cluster" in feature.properties && feature.properties.cluster) {
-          return [{ type: "cluster", id: feature.properties.cluster_id, count: feature.properties.point_count, lngLat }];
-        }
-        const marker = byId.get((feature.properties as MarkerProps).markerId);
-        return marker ? [{ type: "marker", marker, lngLat }] : [];
-      });
-    },
-    /** Zoom level at which a cluster splits apart. */
-    getExpansionZoom(clusterId: number) {
-      return index.getClusterExpansionZoom(clusterId);
-    },
-  };
 }

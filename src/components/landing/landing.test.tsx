@@ -8,9 +8,9 @@ import {
   exampleDiscoveries,
   exampleRankings,
   landingImages,
-  mapMarkers,
 } from "@/features/landing/fixtures";
 import { LeaderboardPreview } from "./leaderboard-preview";
+import { getPreviewPlaces, getPreviewTiles, PREVIEW_ASPECT } from "@/features/landing/leonida-preview.server";
 import { MapPreview } from "./map-preview";
 
 vi.mock("next/image", () => ({
@@ -35,16 +35,6 @@ describe("landing fixtures", () => {
     }
   });
 
-  it("places markers on the illustrative map, with radii for approximate ones", () => {
-    for (const marker of mapMarkers) {
-      expect(marker.x).toBeGreaterThan(0);
-      expect(marker.x).toBeLessThan(1000);
-      expect(marker.y).toBeGreaterThan(0);
-      expect(marker.y).toBeLessThan(600);
-      if (marker.precision === "approximate") expect(marker.radius).toBeGreaterThan(0);
-    }
-  });
-
   it("labels example locations as examples", () => {
     for (const discovery of exampleDiscoveries) {
       if (discovery.location) expect(discovery.location).toMatch(/\(example\)$/);
@@ -56,40 +46,48 @@ describe("landing fixtures", () => {
   });
 });
 
-describe("MapPreview", () => {
-  it("says it's an illustration, not the game map", () => {
-    render(<MapPreview />);
-    expect(screen.getByText("Illustrative map · not the game map")).toBeInTheDocument();
+describe("MapPreview (real GTA VI data)", () => {
+  const places = getPreviewPlaces();
+  const tiles = getPreviewTiles();
+  const preview = () => render(<MapPreview places={places} tiles={tiles} aspect={PREVIEW_ASPECT} />);
+
+  it("features real, named landmarks placed on the map", () => {
+    expect(places.length).toBeGreaterThanOrEqual(10);
+    for (const place of places) {
+      expect(place.title).not.toMatch(/unnamed|\?/i);
+      expect(place.left).toBeGreaterThanOrEqual(0);
+      expect(place.left).toBeLessThanOrEqual(100);
+      expect(place.top).toBeGreaterThanOrEqual(0);
+      expect(place.top).toBeLessThanOrEqual(100);
+    }
   });
 
-  it("filters markers by category", async () => {
-    render(<MapPreview />);
-    const markers = () => screen.getAllByRole("button", { name: /\(example\)$/ });
-    const before = markers().length;
-    const filters = screen.getByRole("group", { name: "Filter example markers" });
-    await userEvent.click(within(filters).getByRole("button", { name: /Wildlife/ }));
-    expect(markers().length).toBeLessThan(before);
-    expect(markers().every((m) => /Wildlife/.test(m.getAttribute("aria-label")!))).toBe(true);
+  it("lays real map tiles under the whole preview", () => {
+    expect(tiles.length).toBeGreaterThan(0);
+    expect(tiles.every((tile) => /\/13\/\d+\/\d+\.jpg$/.test(tile.src))).toBe(true);
   });
 
-  it("opens marker details with precision and a link to the real explorer", async () => {
-    render(<MapPreview />);
-    await userEvent.click(screen.getByRole("button", { name: /Coupe on the causeway/ }));
-    const details = screen.getAllByRole("link", { name: /Open the World Explorer/ })[0].parentElement!;
-    expect(within(details).getByText("Approximate coordinate")).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Open the World Explorer/ })[0]).toHaveAttribute("href", "/world");
+  it("credits the community map and says it's unofficial", () => {
+    preview();
+    expect(screen.getByText(/Unofficial community map/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "gtadb.org" })).toHaveAttribute("href", "https://map.gtadb.org");
   });
 
-  it("lists region-only reports instead of pinning them", () => {
-    render(<MapPreview />);
-    expect(screen.getByText(/Region only, listed not pinned/)).toBeInTheDocument();
+  it("shows a place's details from the data, with a link into the World Explorer", async () => {
+    preview();
+    await userEvent.click(screen.getByRole("button", { name: /^Vice Regal,/ }));
+    const card = screen.getByRole("heading", { name: "Vice Regal" }).closest("article")!;
+    expect(within(card).getByText(/Ritz-Carlton/)).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: /Open in the World Explorer/ })).toHaveAttribute("href", "/world/L1");
   });
 
-  it("disables zoom out at the starting zoom and enables it after zooming in", async () => {
-    render(<MapPreview />);
-    expect(screen.getByRole("button", { name: "Zoom out" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    expect(screen.getByRole("button", { name: "Zoom out" })).toBeEnabled();
+  it("filters places by layer", async () => {
+    preview();
+    const before = within(screen.getByRole("list", { name: "Featured places" })).getAllByRole("button").length;
+    await userEvent.click(within(screen.getByRole("group", { name: "Show places by layer" })).getByRole("button", { name: "Nature" }));
+    const after = within(screen.getByRole("list", { name: "Featured places" })).getAllByRole("button");
+    expect(after.length).toBeLessThan(before);
+    expect(after.every((b) => /Nature$/.test(b.getAttribute("aria-label")!))).toBe(true);
   });
 });
 

@@ -2,86 +2,16 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useEffectEvent, useRef } from "react";
-import { getVersion, Map as MapLibreMap, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
-import { brandColors } from "@/components/brand/colors";
-import { boundsToLngLatBounds, gridLines, padBounds, WORLD_FIT_PADDING } from "@/features/world/coordinates";
-import { GTA_MAP_ATTRIBUTION, GTA_MAP_TILES_URL, GTA_TILE_BOUNDS, GTA_TILE_ZOOM } from "@/features/world/gta-map-config";
+import { getVersion, Map as MapLibreMap, setWorkerUrl } from "maplibre-gl";
+import { worldMapStyle } from "./world-map-style";
+import { boundsToLngLatBounds, padBounds, WORLD_FIT_PADDING } from "@/features/world/coordinates";
+import { GTA_TILE_ZOOM } from "@/features/world/gta-map-config";
 import type { WorldBounds } from "@/features/world/types";
 
 // MapLibre resolves its worker relative to its own bundle, which Next renames.
 // Serve the copy made by scripts/copy-maplibre-worker.mjs instead.
 setWorkerUrl(`/vendor/maplibre-gl-worker-${getVersion()}.mjs`);
 
-
-/** Grid spacing in world units for the placeholder base layer. */
-const GRID_STEP = 500;
-
-function placeholderStyle(world: WorldBounds): StyleSpecification {
-  const [[west, south], [east, north]] = boundsToLngLatBounds(world);
-  return {
-    version: 8,
-    sources: {
-      // GTA VI community map tiles (gtadb.org, CC BY 4.0), self-hosted. See gta-map-config.ts.
-      gta: {
-        type: "raster",
-        tiles: [`${GTA_MAP_TILES_URL}/{z}/{x}/{y}.jpg`],
-        tileSize: 256,
-        minzoom: GTA_TILE_ZOOM.min,
-        maxzoom: GTA_TILE_ZOOM.max,
-        bounds: [...boundsToLngLatBounds(GTA_TILE_BOUNDS)].flat() as [number, number, number, number],
-        attribution: GTA_MAP_ATTRIBUTION,
-      },
-      grid: { type: "geojson", data: gridLines(world, GRID_STEP) },
-      edge: {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: [
-              [west, south],
-              [east, south],
-              [east, north],
-              [west, north],
-              [west, south],
-            ],
-          },
-        },
-      },
-    },
-    layers: [
-      { id: "background", type: "background", paint: { "background-color": brandColors.midnight } },
-      {
-        id: "gta-base",
-        type: "raster",
-        source: "gta",
-        // Toned down to sit in the dark interface without losing the map's colour.
-        paint: { "raster-brightness-max": 0.82, "raster-saturation": -0.15, "raster-fade-duration": 150 },
-      },
-      {
-        id: "grid-minor",
-        type: "line",
-        source: "grid",
-        filter: ["!", ["get", "major"]],
-        paint: { "line-color": brandColors.border, "line-width": 0.5, "line-opacity": 0.18 },
-      },
-      {
-        id: "grid-major",
-        type: "line",
-        source: "grid",
-        filter: ["get", "major"],
-        paint: { "line-color": brandColors.border, "line-width": 1, "line-opacity": 0.35 },
-      },
-      {
-        id: "world-edge",
-        type: "line",
-        source: "edge",
-        paint: { "line-color": brandColors.muted, "line-width": 1, "line-opacity": 0.5, "line-dasharray": [4, 4] },
-      },
-    ],
-  };
-}
 
 type WorldMapProps = {
   world: WorldBounds;
@@ -109,7 +39,7 @@ export function WorldMap({ world, onReady, onError, className }: WorldMapProps) 
     try {
       map = new MapLibreMap({
         container,
-        style: placeholderStyle(world),
+        style: worldMapStyle(world),
         bounds: boundsToLngLatBounds(world),
         fitBoundsOptions: { padding: WORLD_FIT_PADDING },
         // MapLibre zooms in until maxBounds covers the viewport, so the margin must
@@ -133,11 +63,19 @@ export function WorldMap({ world, onReady, onError, className }: WorldMapProps) 
     // Errors before the first load (e.g. the worker file is missing) mean the map can't
     // render: hand over to the list fallback. Later errors (a failed tile) are not fatal.
     let loaded = false;
+    // A tile or source that fails to load (e.g. open sea with no tile) is never fatal: the map
+    // just shows the background there. Only errors before the first load that aren't tied to a
+    // source (the worker or style can't load) mean the map can't render.
     map.on("error", (event) => {
-      if (loaded) console.warn("World map:", event.error?.message);
+      const fromSource = "sourceId" in event || "tile" in event;
+      if (loaded || fromSource) console.warn("World map:", event.error?.message);
       else handleError(event.error ?? new Error("The map failed to load."));
     });
-    map.getCanvas().addEventListener("webglcontextlost", () => handleError(new Error("The map's graphics context was lost.")));
+    // MapLibre releases its own context in map.remove() (every unmount, and every remount in
+    // development), and restores it after a GPU reset on its own. Losing it is never fatal here.
+    const canvas = map.getCanvas();
+    const onContextLost = () => console.warn("World map: graphics context lost; MapLibre will restore it.");
+    canvas.addEventListener("webglcontextlost", onContextLost);
 
     map.once("load", () => {
       loaded = true;
@@ -147,6 +85,7 @@ export function WorldMap({ world, onReady, onError, className }: WorldMapProps) 
     });
 
     return () => {
+      canvas.removeEventListener("webglcontextlost", onContextLost);
       handleReady(null);
       map.remove();
     };

@@ -181,7 +181,7 @@ function Board({ source }: { source: ProfileDataSource }) {
                     </td>
                     <td className="py-3 pr-3">
                       <Link href={`/profile/${entry.username}`} className="flex items-center gap-3 hover:text-accent">
-                        <Avatar name={entry.displayName} size="sm" />
+                        <Avatar name={entry.displayName} preset={entry.avatarId} size="sm" />
                         <span className="text-small font-medium">{entry.displayName}</span>
                         {isYou && <Badge tone="accent">You</Badge>}
                       </Link>

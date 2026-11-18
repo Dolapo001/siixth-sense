@@ -64,7 +64,7 @@ export function Dialog({
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       className={cn(
-        "sid-dialog border border-border bg-surface p-0 text-fg backdrop:bg-transparent",
+        "sid-dialog glass-sheet p-0 text-fg backdrop:bg-transparent",
         variants[variant],
         className,
       )}

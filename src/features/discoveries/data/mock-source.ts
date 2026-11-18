@@ -9,6 +9,7 @@
 import { getSession, SAMPLE_VIEWER } from "@/features/authentication/session";
 import { getSampleWorld } from "@/features/world/data/mock-source";
 import type { Region } from "@/features/world/types";
+import { accountFor, presentContributor } from "@/features/profiles/data/sample-identity";
 import type { VerificationStatus } from "@/types/intelligence";
 import { PAGE_SIZE, type DiscoveryQuery } from "../query";
 import type {
@@ -251,6 +252,22 @@ export function sampleAttestationFor(item: DiscoveryListItem, history: Verificat
   };
 }
 
+/** Contributors as they currently present themselves (profile edits, avatars). */
+function presentItem(item: DiscoveryListItem): DiscoveryListItem {
+  return { ...item, contributor: presentContributor(item.contributor) };
+}
+
+function presentDetail(detail: DiscoveryDetail): DiscoveryDetail {
+  return {
+    ...detail,
+    contributor: presentContributor(detail.contributor),
+    comments: detail.comments.map((c) => ({ ...c, author: presentContributor(c.author) })),
+    evidence: detail.evidence.map((e) => ({ ...e, author: e.author && presentContributor(e.author) })),
+    suggestions: detail.suggestions.map((s) => ({ ...s, author: presentContributor(s.author) })),
+    related: detail.related.map(presentItem),
+  };
+}
+
 function detailFor(item: DiscoveryListItem, viewer: Contributor | null): DiscoveryDetail {
   const h = hash(item.id);
   const state = stateFor(item);
@@ -335,13 +352,18 @@ export function createMockDiscoverySource(): DiscoveryDataSource {
     kind: "sample",
     async listDiscoveries(query) {
       await delay();
-      return queryDiscoveries(sampleItems, query);
+      // A renamed contributor's new name still finds their discoveries.
+      const page = queryDiscoveries(sampleItems, {
+        ...query,
+        contributor: query.contributor ? accountFor(query.contributor) : null,
+      });
+      return { ...page, items: page.items.map(presentItem) };
     },
     async getDiscovery(id) {
       await delay();
       const item = sampleItems.find((candidate) => candidate.id === id);
       const session = await getSession();
-      return item ? detailFor(item, session?.user ?? null) : null;
+      return item ? presentDetail(detailFor(item, session?.user ?? null)) : null;
     },
     async listRegions() {
       return sampleAreas;
@@ -390,7 +412,7 @@ export function createMockDiscoverySource(): DiscoveryDataSource {
       if (vote === "confirm") item.engagement.confirmations += 1;
       state.votes.set(viewer.username, { vote, reason });
       applySampleVoteRule(item, state, viewer);
-      return detailFor(item, viewer);
+      return presentDetail(detailFor(item, viewer));
     },
 
     async report(target, reason, details) {

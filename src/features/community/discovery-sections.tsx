@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import type { DiscoveryDetail, ReportTarget } from "@/features/discoveries/types";
 import { categoryConfig } from "@/features/world/categories";
 import { actionErrorMessage, type useDiscoveryActions } from "./hooks";
+import { Avatar } from "@/components/profiles/avatar";
+import type { Contributor } from "@/features/discoveries/types";
 
 type Actions = ReturnType<typeof useDiscoveryActions>;
 type SectionProps = { discovery: DiscoveryDetail; actions: Actions };
@@ -27,12 +29,13 @@ function isWebUrl(url: string) {
   }
 }
 
-function AuthorLink({ username, displayName }: { username: string; displayName: string }) {
+function AuthorLink({ username, displayName, avatarId }: Contributor) {
   return (
     <Link
       href={`/profile/${username}`}
-      className="text-fg underline decoration-fg/40 underline-offset-2 hover:text-accent hover:decoration-accent"
+      className="inline-flex items-center gap-1.5 text-fg underline decoration-fg/40 underline-offset-2 hover:text-accent hover:decoration-accent"
     >
+      <Avatar name={displayName} preset={avatarId} size="xs" />
       {displayName}
     </Link>
   );

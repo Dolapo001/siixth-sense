@@ -1,3 +1,6 @@
+import type { AvatarPresetId } from "@/components/profiles/avatar-presets";
+import type { DiscoveryCategory } from "@/features/world/types";
+
 /*
  * Profile and leaderboard types. Frontend shape only until the backend
  * contract exists.
@@ -13,6 +16,8 @@ export type ContributionStats = {
   comments: number;
 };
 
+export type AreaActivity = { name: string; discoveries: number; verified: number };
+
 export type Achievement = { id: string; name: string; description: string; earnedAt: string };
 
 export type Profile = {
@@ -21,13 +26,25 @@ export type Profile = {
   bio: string | null;
   joinedAt: string;
   avatarUrl: string | null;
+  /** One of the original preset avatars; takes precedence over avatarUrl. */
+  avatarId: AvatarPresetId | null;
+  /** True when this is the signed-in player's own profile. Set by the server. */
+  viewerIsOwner?: boolean;
   reputation: number;
   stats: ContributionStats;
   achievements: Achievement[];
   /** Optional. `verified` is true only after the wallet signature flow completed. */
   wallet: { address: string; network: string; verified: boolean } | null;
-  /** Number of regions with at least one of their discoveries. */
+  /** Number of areas with at least one of their discoveries. */
   regionsExplored: number;
+  /**
+   * Where in Leonida they've made discoveries: area names as the World map
+   * uses them (e.g. "Vice Beach"), most discoveries first. Aggregated by the
+   * server across all their discoveries, not just one page.
+   */
+  areas: AreaActivity[];
+  /** Their submitted discoveries by category, with how many were verified. */
+  byCategory: Partial<Record<DiscoveryCategory, { submitted: number; verified: number }>>;
 };
 
 export const leaderboardDimensions = [
@@ -48,6 +65,7 @@ export type LeaderboardEntry = {
   rank: number;
   username: string;
   displayName: string;
+  avatarId?: AvatarPresetId | null;
   verified: number;
   reviews: number;
   reputation: number;
@@ -60,3 +78,13 @@ export type Leaderboard = {
   /** Periods the backend can rank by. */
   supportedPeriods: LeaderboardPeriod[];
 };
+
+/** What a player can change about their profile (PATCH /me/profile). */
+export type ProfileUpdate = {
+  username: string;
+  displayName: string;
+  bio: string | null;
+  avatarId: AvatarPresetId | null;
+};
+
+export type UsernameCheck = { available: boolean; reason?: string };

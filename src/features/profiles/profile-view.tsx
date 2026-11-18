@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Award, CalendarDays, Wallet } from "lucide-react";
+import { Award, CalendarDays, Pencil, Wallet } from "lucide-react";
 import { DiscoveryRow, formatDate } from "@/components/discoveries/discovery-items";
 import { PageContainer } from "@/components/layout/page-header";
 import { Avatar } from "@/components/profiles/avatar";
@@ -16,6 +16,7 @@ import { defaultQuery, serializeDiscoveryQuery } from "@/features/discoveries/qu
 import { cn } from "@/lib/utilities/cn";
 import type { ProfileDataSource } from "./data/source";
 import { useProfile, useProfileSource } from "./hooks";
+import { CategoryBreakdown, TheirLeonida } from "./profile-gta";
 import type { Profile } from "./types";
 import { CopyableValue } from "@/components/web3/web3-bits";
 
@@ -94,16 +95,23 @@ function WalletLine({ wallet }: { wallet: NonNullable<Profile["wallet"]> }) {
 
 function ProfileContent({ profile, sample }: { profile: Profile; sample: boolean }) {
   const session = useSession();
-  const isYou = session.data?.user.username === profile.username;
+  // The server says whether this is the signed-in player (usernames can change; accounts don't).
+  const isYou = profile.viewerIsOwner ?? session.data?.user.username === profile.username;
 
   return (
     <PageContainer>
       <header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-center">
-        <Avatar name={profile.displayName} url={profile.avatarUrl} size="lg" />
+        <Avatar name={profile.displayName} url={profile.avatarUrl} preset={profile.avatarId} size="lg" />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-title font-semibold">{profile.displayName}</h1>
             {isYou && <Badge tone="accent">You</Badge>}
+            {isYou && (
+              <Link href="/settings#profile" className={buttonStyles({ variant: "secondary", size: "sm" })}>
+                <Pencil aria-hidden />
+                Edit profile
+              </Link>
+            )}
             {sample && <Badge tone="signal">Sample data</Badge>}
           </div>
           <p className="meta text-muted">@{profile.username}</p>
@@ -132,7 +140,7 @@ function ProfileContent({ profile, sample }: { profile: Profile; sample: boolean
           <Stat label="Submitted" value={profile.stats.submitted} />
           <Stat label="Reviews" value={profile.stats.reviews} />
           <Stat label="Comments" value={profile.stats.comments} />
-          <Stat label="Regions explored" value={profile.regionsExplored} />
+          <Stat label="Areas explored" value={profile.areas.length} />
         </dl>
         <p className="text-small text-muted">
           {profile.stats.submitted === 0
@@ -140,6 +148,10 @@ function ProfileContent({ profile, sample }: { profile: Profile; sample: boolean
             : `${profile.stats.verified} of ${profile.stats.submitted} submitted ${profile.stats.submitted === 1 ? "discovery has" : "discoveries have"} been verified by the community.`}
         </p>
       </section>
+
+      <TheirLeonida areas={profile.areas} displayName={profile.displayName} />
+
+      <CategoryBreakdown byCategory={profile.byCategory} username={profile.username} />
 
       <section aria-labelledby="achievements" className="flex flex-col gap-3">
         <h2 id="achievements" className="eyebrow">

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { crossSiteRefusal, isSameOrigin } from "@/features/authentication/server/same-origin.server";
 import { cookieOptions, isSolanaAddress, newNonce, signToken } from "@/features/authentication/server/auth.server";
 import { CHALLENGE_COOKIE, CHALLENGE_TTL_SECONDS, signInMessage } from "@/features/authentication/siws";
 
@@ -10,6 +11,7 @@ const refuse = (message: string, status = 400) => Response.json({ error: { code:
  * signature against what this server issued, not what the browser sends back.
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   const body = (await request.json().catch(() => null)) as { address?: unknown } | null;
   if (!isSolanaAddress(body?.address)) return refuse("That isn't a valid Solana wallet address.");
 

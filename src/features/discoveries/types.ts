@@ -1,3 +1,4 @@
+import type { AvatarPresetId } from "@/components/profiles/avatar-presets";
 import type { DiscoveryCategory } from "@/features/world/types";
 import type { ConfidenceLevel, LocationPrecision, VerificationStatus } from "@/types/intelligence";
 
@@ -6,7 +7,12 @@ import type { ConfidenceLevel, LocationPrecision, VerificationStatus } from "@/t
  * exists; an API source will map onto these.
  */
 
-export type Contributor = { username: string; displayName: string };
+export type Contributor = {
+  username: string;
+  displayName: string;
+  /** Their chosen preset avatar, when the server includes it. */
+  avatarId?: AvatarPresetId | null;
+};
 
 export type DiscoveryLocation = {
   locationId: string;

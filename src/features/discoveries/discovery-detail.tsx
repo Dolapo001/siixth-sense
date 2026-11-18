@@ -6,6 +6,7 @@ import { DiscoveryRow, formatDate } from "@/components/discoveries/discovery-ite
 import { ScreenshotThumb } from "@/components/discoveries/screenshot-thumb";
 import { VerificationTimeline } from "@/components/discoveries/verification-timeline";
 import { PageContainer } from "@/components/layout/page-header";
+import { Avatar } from "@/components/profiles/avatar";
 import { ConfidenceLabel } from "@/components/shared/confidence-label";
 import { EmptyState, ErrorState, LoadingState, UnavailableState } from "@/components/shared/states";
 import { VerificationBadge } from "@/components/shared/verification-badge";
@@ -130,7 +131,8 @@ function Detail({ discovery, source }: { discovery: DiscoveryDetail; source: Dis
         </div>
         <h1 className="text-title font-semibold">{discovery.title}</h1>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-small text-muted">
+          <p className="flex flex-wrap items-center gap-1.5 text-small text-muted">
+            <Avatar name={discovery.contributor.displayName} preset={discovery.contributor.avatarId} size="sm" />
             Shared by{" "}
             <Link href={`/profile/${discovery.contributor.username}`} className="text-fg underline decoration-fg/40 underline-offset-2 hover:text-accent hover:decoration-accent">
               {discovery.contributor.displayName}

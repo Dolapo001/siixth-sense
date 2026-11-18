@@ -19,17 +19,21 @@ describe("indexing rules", () => {
       index: false,
       follow: true,
     });
-    expect(sitemap().map((entry) => entry.url)).not.toContainEqual(expect.stringContaining("/world"));
+    const urls = sitemap().map((entry) => entry.url);
+    expect(urls).not.toContainEqual(expect.stringContaining("/discoveries"));
+    // The World pages show real map data already, so they're listed regardless.
+    expect(urls).toContainEqual(expect.stringMatching(/\/world$/));
+    expect(urls).toContainEqual(expect.stringMatching(/\/world\/L1$/));
   });
 
   it("indexes public pages, with canonicals, once an API is configured", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.example.test");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://site.example.test");
     const { seo, sitemap } = await load();
-    const meta = seo.publicPage({ title: "World", description: "d", path: "/world" });
+    const meta = seo.publicPage({ title: "Discoveries", description: "d", path: "/discoveries" });
     expect(meta.robots).toEqual({ index: true, follow: true });
-    expect(meta.alternates?.canonical).toBe("/world");
-    expect(sitemap().map((entry) => entry.url)).toContain("https://site.example.test/world");
+    expect(meta.alternates?.canonical).toBe("/discoveries");
+    expect(sitemap().map((entry) => entry.url)).toContain("https://site.example.test/discoveries");
   });
 
   it("disallows personal, account and admin pages", async () => {

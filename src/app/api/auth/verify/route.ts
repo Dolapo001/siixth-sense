@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { crossSiteRefusal, isSameOrigin } from "@/features/authentication/server/same-origin.server";
 import {
   contributorFor,
   cookieOptions,
@@ -16,6 +17,7 @@ const refuse = (message: string, status = 401) => Response.json({ error: { code:
  * its cookie is cleared whether or not the signature checks out.
  */
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return crossSiteRefusal();
   const jar = await cookies();
   const challenge = readToken<{ address: string; message: string; exp: number }>(jar.get(CHALLENGE_COOKIE)?.value);
   jar.delete({ name: CHALLENGE_COOKIE, path: "/api/auth" });

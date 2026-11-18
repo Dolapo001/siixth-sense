@@ -14,7 +14,7 @@ const controlButton =
 
 export function MapControls({ onZoomIn, onZoomOut, onReset }: MapControlsProps) {
   return (
-    <div className="flex flex-col overflow-visible rounded-md border border-border bg-surface/95 backdrop-blur">
+    <div className="glass-control flex flex-col overflow-visible rounded-md">
       <Tooltip content="Zoom in" side="top" asLabel>
         {(props) => (
           <button type="button" onClick={onZoomIn} className={controlButton} {...props}>

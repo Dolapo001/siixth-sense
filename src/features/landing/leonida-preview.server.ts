@@ -5,8 +5,7 @@
  */
 
 import { getLocationDetail, getWorldOverview } from "@/features/world/data/gtadb.server";
-import { GTA_MAP_TILES_URL, GTA_TILE_BOUNDS } from "@/features/world/gta-map-config";
-import { gtadbTileToMapLibre } from "@/features/world/gta-projection";
+import { LEONIDA_ASPECT, leonidaPosition, leonidaTiles, type MosaicTile } from "@/features/world/leonida-mosaic";
 import type { WorldLayerId } from "@/features/world/layers";
 
 /**
@@ -42,16 +41,10 @@ export type PreviewPlace = {
   top: number;
 };
 
-export type PreviewTile = { src: string; left: number; top: number; width: number; height: number };
-
-const bounds = GTA_TILE_BOUNDS;
-const spanX = bounds.maxX - bounds.minX;
-const spanY = bounds.maxY - bounds.minY;
-const leftOf = (x: number) => ((x - bounds.minX) / spanX) * 100;
-const topOf = (y: number) => ((bounds.maxY - y) / spanY) * 100;
+export type PreviewTile = MosaicTile;
 
 /** Width ÷ height of Leonida, for the preview's aspect ratio. */
-export const PREVIEW_ASPECT = spanX / spanY;
+export const PREVIEW_ASPECT = LEONIDA_ASPECT;
 
 export function getPreviewPlaces(): PreviewPlace[] {
   const markers = new Map(getWorldOverview().markers.map((marker) => [marker.id, marker]));
@@ -66,37 +59,13 @@ export function getPreviewPlaces(): PreviewPlace[] {
         layer: marker.layer ?? "other",
         areas: detail.areas ?? [],
         realWorld: detail.realWorldCounterpart ?? null,
-        left: leftOf(marker.coordinate.x),
-        top: topOf(marker.coordinate.y),
+        ...leonidaPosition(marker.coordinate.x, marker.coordinate.y),
       },
     ];
   });
 }
 
-/**
- * gtadb zoom-1 tiles (4,096 m each, MapLibre zoom 13) covering Leonida, as
- * percentages of the preview box. Tiles overhanging the edge are clipped by
- * the box, which keeps the tile art's legend panel out of view.
- */
+/** Tiles covering Leonida (see leonida-mosaic.ts). */
 export function getPreviewTiles(): PreviewTile[] {
-  const z = 1;
-  const metres = 32_768 / (4 * 2 ** z);
-  const tiles: PreviewTile[] = [];
-  for (let x = 0; x < 4 * 2 ** z; x++) {
-    for (let y = 0; y < 4 * 2 ** z; y++) {
-      const west = x * metres - 16_384;
-      const north = 16_384 - y * metres;
-      if (west >= bounds.maxX || west + metres <= bounds.minX) continue;
-      if (north <= bounds.minY || north - metres >= bounds.maxY) continue;
-      const t = gtadbTileToMapLibre(z, x, y);
-      tiles.push({
-        src: `${GTA_MAP_TILES_URL}/${t.z}/${t.x}/${t.y}.jpg`,
-        left: leftOf(west),
-        top: topOf(north),
-        width: (metres / spanX) * 100,
-        height: (metres / spanY) * 100,
-      });
-    }
-  }
-  return tiles;
+  return leonidaTiles();
 }

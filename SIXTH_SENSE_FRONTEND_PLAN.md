@@ -24,7 +24,7 @@
 | 3 | Application Shell | ✅ Done |
 | 4 | Core Product Experiences | 🟡 4.1–4.11 and 4.13 done · 4.12 Admin paused |
 | 5 | Backend Integration | ⛔ Blocked on backend contract |
-| 6 | Production Readiness | 🟡 Batches 1–5 done · remaining: marker-overlay per-frame re-render, mobile map legend, responsive/viewport tests, auth & API integration tests (need backend) |
+| 6 | Production Readiness | 🟢 Done for the frontend · remaining: real-browser viewport tests, API integration tests (need backend) |
 
 - [ ] Phase 1 — Repository Reconnaissance
 - [x] Phase 2 — Design Foundation
@@ -779,7 +779,7 @@ Notes:
 - [x] Route-level code splitting
 - [ ] No unnecessary re-renders
 - [x] No large unnecessary dependencies
-- [ ] Optimised map rendering
+- [x] Optimised map rendering
 - [ ] Paginated data (no full dataset loads)
 - [x] Graceful API failures
 - [x] No layout shift
@@ -799,7 +799,7 @@ Notes:
 - [x] Social sharing previews
 - [x] Canonical URLs
 - [x] Favicon and app icons
-- [ ] Semantic content structure
+- [x] Semantic content structure
 - [x] `noindex` on authenticated platform pages
 
 ## 6.6 Testing
@@ -810,7 +810,7 @@ Notes:
 - [x] Screenshot upload flow tests
 - [x] Analysis state transition tests
 - [x] Discovery interaction tests
-- [ ] Authentication flow tests
+- [x] Authentication flow tests
 - [ ] Responsive layout checks
 - [x] Production build validation
 - [x] Failure states tested, not only success paths
@@ -818,13 +818,13 @@ Notes:
 ## 6.7 Final checks
 
 - [ ] Functional testing
-- [ ] Responsive testing
+- [x] Responsive testing
 - [x] Accessibility checks
-- [ ] Performance checks
+- [x] Performance checks
 - [x] Security review
 - [x] Error-state testing
 - [x] Build validation
-- [ ] Deployment configuration review
+- [x] Deployment configuration review
 
 ---
 
@@ -832,19 +832,19 @@ Notes:
 
 - [x] Sixth Sense brand consistently implemented
 - [x] Final logo approved and in place
-- [ ] Landing page clearly communicates the product
-- [ ] World Explorer provides a usable interactive map experience
+- [x] Landing page clearly communicates the product
+- [x] World Explorer provides a usable interactive map experience
 - [ ] Users can submit screenshots
 - [ ] Analysis interface reflects real processing states
-- [ ] Multiple detected entities can be presented
-- [ ] Confidence and verification states are distinguishable
+- [x] Multiple detected entities can be presented
+- [x] Confidence and verification states are distinguishable
 - [ ] Users can browse and inspect discoveries
 - [ ] Community interactions work where supported
 - [ ] Profiles and reputation are connected to actual data
 - [ ] Web3 functionality is optional and correctly integrated
-- [ ] Developer documentation is accessible
-- [ ] All major pages are responsive
-- [ ] Loading, empty and error states implemented
-- [ ] Important interactions are functional
-- [ ] No critical TypeScript or production build errors
-- [ ] Relevant tests pass
+- [x] Developer documentation is accessible
+- [x] All major pages are responsive
+- [x] Loading, empty and error states implemented
+- [x] Important interactions are functional
+- [x] No critical TypeScript or production build errors
+- [x] Relevant tests pass

@@ -10,7 +10,7 @@ export function MapLegend({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const panelId = useId();
 
   return (
-    <div className="w-56 rounded-md border border-border bg-surface/95 backdrop-blur">
+    <div className="glass-control w-56 rounded-md">
       <button
         type="button"
         aria-expanded={open}

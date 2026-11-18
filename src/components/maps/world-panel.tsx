@@ -34,7 +34,7 @@ export function WorldPanel({ title, onClose, children }: WorldPanelProps) {
       onKeyDown={(event) => {
         if (event.key === "Escape") onClose();
       }}
-      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex max-h-[60%] flex-col rounded-t-lg border border-b-0 border-border bg-surface shadow-2xl md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-96 md:rounded-lg md:border-b"
+      className="pointer-events-auto absolute inset-x-0 bottom-0 z-20 flex max-h-[60%] flex-col glass-sheet rounded-t-lg border-b-0 md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-96 md:rounded-lg md:border-b md:border-b-white/10"
     >
       <div aria-hidden className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden" />
       <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">

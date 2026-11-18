@@ -12,8 +12,14 @@ import type { Metadata } from "next";
 
 export const publicPagesIndexable = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
 
-/** Public platform pages, in the order they appear in the sitemap. */
-export const publicPaths = ["/world", "/discoveries", "/community", "/leaderboard"] as const;
+/** Public platform pages that wait for the backend, in sitemap order. */
+export const publicPaths = ["/discoveries", "/community", "/leaderboard"] as const;
+
+/**
+ * The World pages already show real content (the GTA VI community map and its
+ * places), so they're indexable now, backend or not.
+ */
+export const worldPagesIndexable = true;
 
 /** Never indexed: personal, account and internal pages. */
 export const privatePaths = [
@@ -30,15 +36,15 @@ export const privatePaths = [
 
 export const noIndex: Metadata["robots"] = { index: false, follow: false };
 
-type PublicPageInput = { title: string; description: string; path: string };
+type PublicPageInput = { title: string; description: string; path: string; indexable?: boolean };
 
 /** Metadata for a public platform page: description, canonical, social tags and indexing. */
-export function publicPage({ title, description, path }: PublicPageInput): Metadata {
+export function publicPage({ title, description, path, indexable = publicPagesIndexable }: PublicPageInput): Metadata {
   return {
     title,
     description,
     alternates: { canonical: path },
-    robots: publicPagesIndexable ? { index: true, follow: true } : { index: false, follow: true },
+    robots: indexable ? { index: true, follow: true } : { index: false, follow: true },
     // Page-level openGraph replaces the root one, so restate the shared fields.
     openGraph: { title: `${title} · Sixth Sense`, description, url: path, siteName: "Sixth Sense", type: "website" },
     twitter: { card: "summary_large_image", title: `${title} · Sixth Sense`, description },

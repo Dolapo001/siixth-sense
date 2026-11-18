@@ -94,7 +94,7 @@ Many responses use these enums. The UI depends on the **meaning** of each value.
 | `confidence` | number `0–1` | Optional numeric score |
 
 ```ts
-type Contributor = { username: string; displayName: string };
+type Contributor = { username: string; displayName: string; avatarId?: AvatarPresetId | null };  // avatarId: see §8.3
 type WorldCoordinate = { x: number; y: number };                       // game-world units, not GPS
 type WorldBounds = { minX: number; minY: number; maxX: number; maxY: number };
 type Region = { id: string; name: string; bounds: WorldBounds };
@@ -395,6 +395,9 @@ type Profile = {
   achievements: { id: string; name: string; description: string; earnedAt: string }[];
   wallet: { address: string; network: string; verified: boolean } | null;
   regionsExplored: number;
+  // Aggregated over ALL their discoveries (not one page):
+  areas: { name: string; discoveries: number; verified: number }[];  // area names as the World map uses them
+  byCategory: Partial<Record<DiscoveryCategory, { submitted: number; verified: number }>>;
 };
 ```
 A user's discoveries come from `GET /discoveries?contributor={username}`.
@@ -406,13 +409,32 @@ A user's discoveries come from `GET /discoveries?contributor={username}`.
 type Leaderboard = {
   dimension: "verified" | "reviews" | "reputation";
   period: "week" | "month" | "all";
-  entries: { rank: number; username: string; displayName: string;
+  entries: { rank: number; username: string; displayName: string; avatarId?: AvatarPresetId | null;
              verified: number; reviews: number; reputation: number }[];
   supportedPeriods: ("week" | "month" | "all")[];  // UI hides periods you don't support
 };
 ```
 
-**Also needed (no UI yet):** `PATCH /me/profile` (displayName, bio, avatar) for Settings.
+### 8.3 Editing your profile (UI ready: Settings → Profile)
+
+`PATCH /me/profile`, signed in:
+```ts
+// request
+{
+  username: string;      // 3–20, ^[a-z][a-z0-9_]*$, lowercase, unique, not reserved (admin, rockstar, sixthsense…)
+  displayName: string;   // 2–32
+  bio: string | null;    // ≤ 160
+  avatarId: "sunset" | "palm" | "flamingo" | "cruiser" | "neon" | "lighthouse" | "gator" | "starburst" | null;
+}
+// response → the saved Profile
+```
+- Usernames can change; the **account** (the wallet) doesn't. Old usernames should redirect or 404, and references (discoveries, comments) keep pointing at the account.
+- Refusals (taken, reserved, invalid) need a user-facing `message`.
+- Avatars are preset ids drawn by the frontend (original artwork, no uploads), so there is no image storage to provide.
+
+`GET /users/check-username?username=` → `{ available: boolean; reason?: string }`. The viewer's own current name counts as available.
+
+Profiles also gain `avatarId` (see above) and `viewerIsOwner?: boolean` (true on the signed-in player's own profile, so "Edit profile" survives renames).
 
 ---
 
@@ -567,7 +589,7 @@ These need a role check, and `/me` should expose the role so the frontend can sh
 | 21 | POST | `/reports` | Community | ✓ | UI ready |
 | 22 | PUT / DELETE | `/users/{username}/follow` | Community | ✓ | UI ready (optional) |
 | 23 | GET | `/users/{username}` | Profiles | — | UI ready |
-| 24 | PATCH | `/me/profile` | Profiles | ✓ | Needed |
+| 24 | PATCH | `/me/profile` | Profiles | ✓ | UI ready |
 | 25 | GET | `/leaderboard` | Leaderboard | — | UI ready |
 | 26 | GET | `/web3/config` | Web3 | — | UI ready |
 | 27 | GET | `/me/wallet` | Web3 | ✓ | UI ready |

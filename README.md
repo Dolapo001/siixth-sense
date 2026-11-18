@@ -36,6 +36,20 @@ Copy `.env.example` to `.env.local` to configure the API base URL, site URL and 
 | `pnpm brand:assets` | Regenerates `public/brand/*.svg` and the favicon from the logo geometry |
 | `pnpm map:sync` | Pulls the pinned GTA VI community map (gtadb.org, CC BY 4.0): tiles to `public/tiles/gta6` and the landmark snapshot. `pnpm build` runs it; run it once before `pnpm dev` to see the map. |
 
+## Deploying (Vercel)
+
+The default build (`pnpm build`) syncs the GTA map tiles from GitHub, so the build needs network access to github.com (Vercel builds have it). Node 22.18 or newer is required.
+
+| Variable | Needed | What it's for |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` | Yes | Canonical URLs, social images, sitemap. On Vercel it falls back to the deployment domain. |
+| `AUTH_SECRET` | Yes | Signs session cookies for wallet sign-in. 32+ characters; `openssl rand -base64 32`. Sign-in refuses to work without it in production. |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | No | Chain ID shown in the sign-in message (`devnet` default). |
+| `NEXT_PUBLIC_API_BASE_URL` | Later | The Sixth Sense backend. Also makes discoveries, community and leaderboard indexable. |
+| `SIXTH_SENSE_OPENAPI_URL` | Later | Backend OpenAPI document for the Developer Portal. |
+| `NEXT_PUBLIC_MAP_TILES_URL` | No | Serve map tiles from a CDN instead of the build output. |
+| `NEXT_PUBLIC_ENABLE_DEV_MOCKS` | Never in production | Labelled sample data for development and previews. |
+
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Motion · TanStack Query · React Hook Form + Zod · MapLibre GL · Solana wallet adapter · Vitest.

@@ -1,13 +1,23 @@
 import type { MetadataRoute } from "next";
-import { publicPagesIndexable, publicPaths } from "@/lib/seo";
+import { getWorldOverview } from "@/features/world/data/gtadb.server";
+import { publicPagesIndexable, publicPaths, worldPagesIndexable } from "@/lib/seo";
 import { siteUrl } from "@/lib/site-url";
 
 /**
- * Static routes only. Discovery, location and contributor pages are added
- * once the backend can list them.
+ * The landing page, developer docs, the World Explorer and every place on the
+ * GTA VI map; other public pages once the backend serves their content.
+ * Discovery and contributor pages are added once the backend can list them.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const site = siteUrl();
-  const paths = ["/", "/developers", ...(publicPagesIndexable ? publicPaths : [])];
-  return paths.map((path) => ({ url: `${site}${path === "/" ? "" : path}` }));
+  const paths = [
+    "/",
+    "/developers",
+    ...(worldPagesIndexable ? ["/world"] : []),
+    ...(publicPagesIndexable ? publicPaths : []),
+  ];
+  const places = worldPagesIndexable
+    ? getWorldOverview().markers.map((marker) => `/world/${encodeURIComponent(marker.locationId)}`)
+    : [];
+  return [...paths, ...places].map((path) => ({ url: `${site}${path === "/" ? "" : path}` }));
 }

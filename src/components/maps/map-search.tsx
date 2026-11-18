@@ -69,7 +69,7 @@ export function MapSearch({ regions, markers, onSelect, className }: MapSearchPr
             setOpen(false);
           }
         }}
-        className="h-10 w-full rounded-md border border-border-strong bg-surface/95 pr-9 pl-9 text-small text-fg backdrop-blur placeholder:text-muted hover:border-fg/60 focus-visible:border-accent [&::-webkit-search-cancel-button]:hidden"
+        className="h-10 w-full glass-control rounded-md !border-border-strong pr-9 pl-9 text-small text-fg placeholder:text-muted hover:border-fg/60 focus-visible:border-accent [&::-webkit-search-cancel-button]:hidden"
       />
       {query && (
         <button

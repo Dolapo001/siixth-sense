@@ -99,4 +99,18 @@ Decisions: gtadb as the map foundation; tiles self-hosted, generated at build ti
 - Search covers every place and area regardless of the active layers. It matches names and the areas a place sits in, ranks names that start with the query first, and shows the kind and area chain. Picking a place on a hidden layer switches that layer on and opens it; picking an area frames it.
 - The area menu lists the official destinations first, then all 37 areas from the data.
 
-**Next:** draw markers with MapLibre instead of React (the brief's "map-native rendering"), area drill-down panels (neighbourhoods within an area), and replacing the remaining generic content. Entities (vehicles, characters, wildlife, collectibles), discoveries, community data and analysis remain blocked on the Sixth Sense backend.
+**Map follow-ups: done.** Map-native markers (clustered GeoJSON, layer icons and name labels drawn by MapLibre), the Browse drill-down (area → neighbourhood → place), descriptive names for every place, collapsible layers with All/None, and a mobile legend sheet.
+
+**Phase 5 — entities and discoveries: done (for what exists).** Discovery categories now include Landmarks, Collectibles and Activities. Discovery pages show the real map location and a Sources card (contributor, AI vs community, gtadb attribution, "no official source"). Dev samples sit at real places. The landing map is the real Leonida preview with 14 real landmarks.
+
+**Phase 6 — Analyze: done.** Candidate locations on the real map, an honest uncertainty explanation, "Ask the community" (typed `POST /discoveries`), and a "How to read these results" guide.
+
+**Profiles: done.** "Areas explored" pinned on the Leonida map, and discoveries by category (new `areas` / `byCategory` profile fields).
+
+**Auth: done.** Sign-In With Solana: signed challenge → ed25519 verification → HTTP-only session cookie, with CSRF origin checks. Needs `AUTH_SECRET` in production.
+
+**Phase 7 — visual: done.** Shared glass for floating map UI (`glass-control`) and panels and dialogs (`glass-sheet`), card hover lift, and selective cyan.
+
+**Phase 8 — production: done.** World pages are indexable and the sitemap lists every place. Route bundles were checked (Settings went from 171 KB to 41 KB). Node engine pinned; deploy variables are in the README.
+
+**Still blocked on the backend:** real discoveries, community data, entity knowledge (vehicles, characters, wildlife, collectibles), real screenshot analysis, and entity search. Entities (vehicles, characters, wildlife, collectibles), discoveries, community data and analysis remain blocked on the Sixth Sense backend.

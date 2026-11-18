@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getLocationDetail } from "@/features/world/data/gtadb.server";
-import { publicPage } from "@/lib/seo";
+import { publicPage, worldPagesIndexable } from "@/lib/seo";
 
 /** Titles and descriptions from the place itself, e.g. "Vice Regal · Sixth Sense". */
 export async function generateMetadata({ params }: PageProps<"/world/[locationId]">): Promise<Metadata> {
@@ -14,6 +14,8 @@ export async function generateMetadata({ params }: PageProps<"/world/[locationId
       ? `${location.description} On the GTA VI map of Leonida.`
       : "A location in the world of GTA VI, with its discoveries and verification status.",
     path: `/world/${encodeURIComponent(locationId)}`,
+    // Unknown ids still render the explorer; keep them out of search.
+    indexable: Boolean(location) && worldPagesIndexable,
   });
 }
 

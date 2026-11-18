@@ -4,6 +4,7 @@ import { VerificationBadge } from "@/components/shared/verification-badge";
 import { categoryConfig } from "@/features/world/categories";
 import type { DiscoveryListItem } from "@/features/discoveries/types";
 import { ScreenshotThumb } from "./screenshot-thumb";
+import { Avatar } from "@/components/profiles/avatar";
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -47,7 +48,7 @@ function Engagement({ item }: { item: DiscoveryListItem }) {
 export function DiscoveryLead({ item }: { item: DiscoveryListItem }) {
   const { label, icon: Icon } = categoryConfig[item.category];
   return (
-    <article className="group relative grid gap-5 rounded-lg border border-border bg-surface p-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:p-5">
+    <article className="group relative grid gap-5 rounded-lg border border-border bg-surface p-4 transition-[border-color,transform,box-shadow] duration-200 ease-out hover:border-accent/40 hover:shadow-[0_12px_40px_rgb(0_0_0/0.35)] motion-safe:hover:-translate-y-0.5 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:p-5">
       <ScreenshotThumb screenshot={item.screenshot} category={item.category} size="lg" />
       <div className="flex flex-col gap-3">
         <p className="eyebrow">Latest discovery</p>
@@ -65,7 +66,11 @@ export function DiscoveryLead({ item }: { item: DiscoveryListItem }) {
         </div>
         <p className="flex flex-wrap gap-x-3 gap-y-1 text-small text-muted">
           <LocationLine item={item} />
-          <span>by {item.contributor.displayName}</span>
+          <span className="inline-flex items-center gap-1.5">
+            by
+            <Avatar name={item.contributor.displayName} preset={item.contributor.avatarId} size="xs" />
+            {item.contributor.displayName}
+          </span>
           <time dateTime={item.submittedAt}>{formatDate(item.submittedAt)}</time>
         </p>
         <div className="mt-auto">
@@ -83,7 +88,7 @@ export function DiscoveryRow({ item }: { item: DiscoveryListItem }) {
   // so it also fits narrow columns like the community queue.
   return (
     <article className="@container">
-      <div className="group relative grid grid-cols-[6.5rem_minmax(0,1fr)] gap-4 py-4 @2xl:grid-cols-[5.5rem_9rem_minmax(0,1fr)_auto] @2xl:items-center">
+      <div className="group relative -mx-2 grid grid-cols-[6.5rem_minmax(0,1fr)] gap-4 rounded-md px-2 py-4 transition-colors duration-200 hover:bg-surface/70 @2xl:grid-cols-[5.5rem_9rem_minmax(0,1fr)_auto] @2xl:items-center">
         <time dateTime={item.submittedAt} className="meta hidden text-muted @2xl:block">
           {formatDate(item.submittedAt)}
         </time>
@@ -100,7 +105,10 @@ export function DiscoveryRow({ item }: { item: DiscoveryListItem }) {
               {label}
             </span>
             <LocationLine item={item} />
-            <span>{item.contributor.displayName}</span>
+            <span className="inline-flex items-center gap-1">
+              <Avatar name={item.contributor.displayName} preset={item.contributor.avatarId} size="xs" />
+              {item.contributor.displayName}
+            </span>
             <time dateTime={item.submittedAt} className="@2xl:hidden">
               {formatDate(item.submittedAt)}
             </time>

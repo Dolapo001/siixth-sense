@@ -259,7 +259,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
               "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-small backdrop-blur transition-colors",
               browsing
                 ? "border-accent/60 bg-accent/10 text-fg"
-                : "border-border-strong bg-surface/95 text-fg/85 hover:border-fg/60",
+                : "glass-control text-fg/85 hover:border-fg/40",
             )}
           >
             <MapIcon aria-hidden className="size-4 text-accent" />
@@ -272,7 +272,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
             onClick={() => setLayersOpen((open) => !open)}
             aria-expanded={layersOpen}
             aria-controls="map-layer-chips"
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border-strong bg-surface/95 px-3 text-meta font-medium text-fg backdrop-blur transition-colors hover:border-fg/60 pointer-coarse:h-10"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 glass-control rounded-full px-3 text-meta font-medium text-fg transition-colors hover:border-fg/40 pointer-coarse:h-10"
           >
             <Layers aria-hidden className="size-3.5 text-accent" />
             Layers
@@ -294,7 +294,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
               rememberOpener();
               setShowUnplaced(true);
             }}
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-surface/95 px-3 py-2 text-small backdrop-blur hover:border-muted"
+            className="inline-flex items-center gap-2 glass-control rounded-md px-3 py-2 text-small hover:border-fg/40"
           >
             <ListTree aria-hidden className="size-4 text-muted" />
             Not on the map
@@ -320,7 +320,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
               setShowUnplaced(true);
             }}
             aria-label={`Not on the map, ${unplaced.length}`}
-            className="flex size-10 items-center justify-center rounded-md border border-border bg-surface/95 text-muted md:hidden"
+            className="glass-control flex size-10 items-center justify-center rounded-md text-muted md:hidden"
           >
             <ListTree aria-hidden className="size-4" />
           </button>
@@ -331,7 +331,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
               setShowLegend(true);
             }}
             aria-label="Legend"
-            className="flex size-10 items-center justify-center rounded-md border border-border bg-surface/95 text-muted md:hidden"
+            className="glass-control flex size-10 items-center justify-center rounded-md text-muted md:hidden"
           >
             <Info aria-hidden className="size-4" />
           </button>

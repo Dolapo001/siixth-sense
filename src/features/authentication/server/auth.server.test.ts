@@ -26,8 +26,8 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
-const post = (body: unknown) =>
-  new Request("http://localhost:3000/api/auth/x", { method: "POST", body: JSON.stringify(body) });
+const post = (body: unknown, origin = "http://localhost:3000") =>
+  new Request("http://localhost:3000/api/auth/x", { method: "POST", body: JSON.stringify(body), headers: { origin } });
 
 beforeEach(() => jar.clear());
 
@@ -84,7 +84,7 @@ describe("sign-in flow (challenge → verify → session)", () => {
     expect(jar.has(CHALLENGE_COOKIE)).toBe(false);
     expect((await (await session()).json()).user.username).toBe(alice.address);
 
-    await logout();
+    await logout(post({}));
     expect((await (await session()).json()).user).toBeNull();
   });
 
@@ -105,6 +105,14 @@ describe("sign-in flow (challenge → verify → session)", () => {
     // The challenge is single-use.
     expect((await verify(post({ address: alice.address, signature }))).status).toBe(401);
     expect(jar.has(SESSION_COOKIE)).toBe(true);
+  });
+
+  it("refuses requests from other sites", async () => {
+    const { challenge, verify, logout } = await routes();
+    const alice = wallet();
+    expect((await challenge(post({ address: alice.address }, "https://evil.example"))).status).toBe(403);
+    expect((await verify(post({ address: alice.address, signature: "x" }, "https://evil.example"))).status).toBe(403);
+    expect((await logout(post({}, "https://evil.example"))).status).toBe(403);
   });
 
   it("refuses an invalid address up front", async () => {

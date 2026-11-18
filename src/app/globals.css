@@ -192,10 +192,30 @@
   border: 1px solid rgb(255 255 255 / 0.07);
 }
 
+/* Small floating controls over the map (buttons, search, legend, zoom). */
+@utility glass-control {
+  background: rgb(17 26 37 / 0.82);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.28);
+}
+
+/* Panels, bottom sheets and dialogs over content: denser, so long text stays readable. */
+@utility glass-sheet {
+  background: rgb(17 26 37 / 0.9);
+  backdrop-filter: blur(22px) saturate(125%);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 0.45);
+}
+
 /* Without backdrop-filter support, glass falls back to solid surfaces so text stays readable. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-panel,
-  .glass-nav {
+  .glass-nav,
+  .glass-control,
+  .glass-sheet {
     background: rgb(17 26 37 / 0.96);
   }
 }

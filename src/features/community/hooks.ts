@@ -50,7 +50,7 @@ export function useDiscoveryActions(source: DiscoveryDataSource, discoveryId: st
       onSuccess: refresh,
     }),
     vote: useMutation({
-      mutationFn: ({ vote, reason }: { vote: Vote; reason?: string }) => source.vote(discoveryId, vote, reason),
+      mutationFn: ({ vote, reason }: { vote: Vote; reason: string }) => source.vote(discoveryId, vote, reason),
       // The server returns the updated discovery; use it directly, then refresh lists.
       onSuccess: (detail) => {
         queryClient.setQueryData(detailKey, detail);

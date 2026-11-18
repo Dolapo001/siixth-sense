@@ -1,7 +1,13 @@
 import { crossSiteRefusal, isSameOrigin } from "@/features/authentication/server/same-origin.server";
 import { backendRefusal, forwardBackendError } from "@/features/authentication/server/auth-responses.server";
 import { sessionUser } from "@/features/authentication/server/session.server";
-import { BackendUnavailableError, backendUrl, storeTokens, type TokenPair } from "@/lib/api/backend.server";
+import {
+  BackendUnavailableError,
+  backendUrl,
+  clientAddressHeaders,
+  storeTokens,
+  type TokenPair,
+} from "@/lib/api/backend.server";
 import { ApiError, readEnvelope } from "@/lib/api/client";
 import { TERMS_REQUIRED } from "@/features/authentication/siws";
 
@@ -25,14 +31,15 @@ export async function POST(request: Request) {
   try {
     const response = await fetch(backendUrl("auth/wallet/login/"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientAddressHeaders()) },
       body: JSON.stringify({ nonce: body.nonce, signature: body.signature, accept_terms: body.acceptTerms === true }),
       cache: "no-store",
     });
     const tokens = await readEnvelope<TokenPair & { new_account: boolean }>(response);
     await storeTokens(tokens);
+    const account = await sessionUser();
     return Response.json(
-      { user: await sessionUser(), newAccount: tokens.new_account },
+      { user: account?.user ?? null, walletOnly: account?.walletOnly ?? false, newAccount: tokens.new_account },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

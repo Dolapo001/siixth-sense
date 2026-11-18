@@ -6,7 +6,7 @@ import { VotePanel } from "@/components/community/vote-panel";
 import { __sample, createMockDiscoverySource } from "@/features/discoveries/data/mock-source";
 import { ActionRefusedError } from "@/features/discoveries/data/source";
 import type { ViewerPermissions } from "@/features/discoveries/types";
-import { commentSchema, disputeSchema, evidenceSchema, reportSchema, suggestionSchema } from "./schemas";
+import { commentSchema, evidenceSchema, reportSchema, suggestionSchema, voteReasonSchema } from "./schemas";
 
 // These tests run against the sample source, which is opt-in outside `next dev`.
 vi.stubEnv("NEXT_PUBLIC_ENABLE_DEV_MOCKS", "true");
@@ -53,7 +53,7 @@ describe("community schemas", () => {
     expect(evidenceSchema.safeParse({ text: "Matches the reference", url: "https://example.test/x" }).success).toBe(
       true,
     );
-    expect(disputeSchema.safeParse({ reason: "no" }).success).toBe(false);
+    expect(voteReasonSchema.safeParse({ reason: "no" }).success).toBe(false);
     expect(reportSchema.safeParse({ reason: "made-up" }).success).toBe(false);
     expect(reportSchema.safeParse({ reason: "spam" }).success).toBe(true);
   });
@@ -75,16 +75,20 @@ describe("mock community actions", () => {
     const source = createMockDiscoverySource();
     // Few enough confirmations that one more won't reach the sample rule's "verified" threshold.
     const item = __sample.items.find((i) => i.verification === "ai_suggested" && i.engagement.confirmations < 9)!;
-    const detail = await source.vote(item.id, "confirm");
+    // Like the backend, a confirmation without a reason is refused.
+    await expect(source.vote(item.id, "confirm", " ")).rejects.toBeInstanceOf(ActionRefusedError);
+    const detail = await source.vote(item.id, "confirm", "Badge matches.");
     expect(detail.verification).toBe("awaiting_verification");
     expect(detail.verificationHistory.at(-1)).toMatchObject({ actor: { kind: "member", username: "sample_viewer" } });
-    expect(detail.viewer!.vote.current).toBe("confirm");
+    // ...and the vote is final, as on the backend.
+    expect(detail.viewer!.vote).toMatchObject({ allowed: false, current: "confirm" });
+    await expect(source.vote(item.id, "dispute", "Changed my mind.")).rejects.toThrow("Votes can't be changed.");
   });
 
   it("requires a reason to dispute, then marks the discovery disputed", async () => {
     const source = createMockDiscoverySource();
     const item = byStatus("awaiting_verification");
-    await expect(source.vote(item.id, "dispute")).rejects.toBeInstanceOf(ActionRefusedError);
+    await expect(source.vote(item.id, "dispute", "")).rejects.toBeInstanceOf(ActionRefusedError);
     const detail = await source.vote(item.id, "dispute", "The wheels don't match.");
     expect(detail.verification).toBe("disputed");
     expect(detail.verificationHistory.at(-1)!.note).toBe("The wheels don't match.");
@@ -106,7 +110,7 @@ describe("mock community actions", () => {
       allowed: false,
       reason: "Rejected discoveries are closed to new votes.",
     });
-    await expect(source.vote(item.id, "confirm")).rejects.toThrow("Rejected discoveries are closed to new votes.");
+    await expect(source.vote(item.id, "confirm", "Looks right.")).rejects.toThrow("Rejected discoveries are closed to new votes.");
   });
 
   it("records reports and toggles following", async () => {
@@ -177,10 +181,31 @@ describe("VotePanel", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Closed.");
   });
 
-  it("shows the viewer's current vote", () => {
-    render(<VotePanel viewer={viewer({ current: "confirm" })} onVote={vi.fn()} pending={false} error={null} />);
-    expect(screen.getByText(/You confirmed this/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Confirm" })).toHaveAttribute("aria-pressed", "true");
+  it("asks why before sending a confirmation", async () => {
+    // The backend rejects any vote without a reason; Confirm used to send none.
+    const onVote = vi.fn().mockResolvedValue(undefined);
+    render(<VotePanel viewer={viewer()} onVote={onVote} pending={false} error={null} />);
+    await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
+    expect(onVote).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Submit confirmation" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Say why");
+    expect(onVote).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByLabelText(/Why does it check out/), "Badge and tail lights match.");
+    await userEvent.click(screen.getByRole("button", { name: "Submit confirmation" }));
+    expect(onVote).toHaveBeenCalledWith("confirm", "Badge and tail lights match.");
+  });
+
+  it("shows the viewer's vote as final, with no buttons to change it", () => {
+    render(
+      <VotePanel
+        viewer={viewer({ allowed: false, current: "confirm", reason: "You've already voted on this discovery." })}
+        onVote={vi.fn()}
+        pending={false}
+        error={null}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("You confirmed this. Votes can't be changed.");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
 

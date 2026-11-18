@@ -70,7 +70,12 @@ export function IdentityView({ source, controls }: { source: Web3DataSource; con
           ) : linked.isError ? (
             <ErrorState onRetry={() => linked.refetch()} className="py-4" />
           ) : (
-            <OwnershipPanel source={source} controls={controls} linked={linked.data} />
+            <OwnershipPanel
+              source={source}
+              controls={controls}
+              linked={linked.data}
+              walletOnly={session.data?.walletOnly === true}
+            />
           )}
         </Panel>
 
@@ -153,10 +158,13 @@ function OwnershipPanel({
   source,
   controls,
   linked,
+  walletOnly,
 }: {
   source: Web3DataSource;
   controls: WalletControls;
   linked: LinkedWallet | null | undefined;
+  /** This wallet is the only way into the account: unlinking must not be offered. */
+  walletOnly: boolean;
 }) {
   const flow = useLinkWallet(source, controls);
   const busy = flow.step === "requesting" || flow.step === "signing" || flow.step === "verifying";
@@ -183,10 +191,20 @@ function OwnershipPanel({
           </p>
         )}
         <ActionError message={flow.error} />
-        <Button variant="ghost" size="sm" className="self-start" onClick={() => void flow.unlink()}>
-          <Unplug aria-hidden />
-          Unlink wallet
-        </Button>
+        {walletOnly ? (
+          // Signing in again with the same wallet would create a NEW account,
+          // so unlinking here is unrecoverable. The backend has no guard yet,
+          // so the only safe thing is not to offer it.
+          <p className="text-small text-muted">
+            This wallet is how you sign in, so it can&apos;t be unlinked. Add an email to your account first and you&apos;ll
+            be able to change wallets.
+          </p>
+        ) : (
+          <Button variant="ghost" size="sm" className="self-start" onClick={() => void flow.unlink()}>
+            <Unplug aria-hidden />
+            Unlink wallet
+          </Button>
+        )}
       </div>
     );
   }

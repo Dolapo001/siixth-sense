@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-18 · **Repo:** this folder (`sceneid`, branch `main`) · **Backend:** `~/Downloads/sceneid-backend` ([Adefolabi/sceneid](https://github.com/Adefolabi/sceneid)), see its `HANDOVER.md`
 
-Read this first, then [PROGRESS.md](PROGRESS.md) for status and open issues.
+Read this first, then [PROGRESS.md](PROGRESS.md) for status and open issues, and [ROADMAP.md](ROADMAP.md) for the phased checklist of what is left.
 
 ## 1. What this is
 
@@ -57,6 +57,8 @@ pnpm dev
 Set `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_BASE_URL` (public backend URL incl. `/api/v1`), later `SIXTH_SENSE_OPENAPI_URL`. The build needs network access to github.com (map sync). The backend's `ALLOWED_HOSTS` must include its public host; CORS isn't needed. Screenshots over 4.5 MB will fail on Vercel until presigned uploads exist.
 
 ## 6. Suggested next steps
+
+The full phased checklist lives in [ROADMAP.md](ROADMAP.md). In short:
 
 1. **Run the full journey against the local backend** and record it in PROGRESS.md: wallet sign-in (new wallet + terms), upload, analysis polling, publish, comment, vote (needs a contributor-role second account), wallet link, attestation. Fix whatever breaks in the adapters.
 2. Add API integration tests (plan §6.6) against a seeded backend.

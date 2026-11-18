@@ -2,7 +2,15 @@ import { liveApiEnabled } from "@/lib/api/config";
 import { devMocksEnabled } from "@/lib/api/dev-mocks";
 import type { Contributor } from "@/features/discoveries/types";
 
-export type Session = { user: Contributor };
+export type Session = {
+  user: Contributor;
+  /**
+   * The wallet is the only way into this account. Unlinking it would lock the
+   * player out for good, so the UI must not offer that until they've added
+   * another way in (or the backend grows a guard).
+   */
+  walletOnly: boolean;
+};
 
 /** The dev-only signed-in user. Clearly labelled wherever it appears. */
 export const SAMPLE_VIEWER: Contributor = { username: "sample_viewer", displayName: "You (sample viewer)" };
@@ -24,13 +32,13 @@ export function sampleViewerEnabled() {
  */
 export async function getSession(): Promise<Session | null> {
   if (sampleViewerEnabled()) {
-    return { user: SAMPLE_VIEWER };
+    return { user: SAMPLE_VIEWER, walletOnly: false };
   }
   try {
     const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "same-origin" });
     if (!response.ok) return null;
-    const { user } = (await response.json()) as { user: Contributor | null };
-    return user ? { user } : null;
+    const { user, walletOnly } = (await response.json()) as { user: Contributor | null; walletOnly?: boolean };
+    return user ? { user, walletOnly: walletOnly === true } : null;
   } catch {
     return null;
   }

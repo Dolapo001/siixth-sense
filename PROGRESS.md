@@ -1,6 +1,6 @@
 # Sixth Sense Frontend: Progress
 
-**Last updated:** 2026-11-18 · **Branch:** `main` @ `7c5e63e` · **Companion:** [HANDOVER.md](HANDOVER.md) (how to pick this up)
+**Last updated:** 2026-11-18 · **Branch:** `main` @ `1c4382b` · **Companions:** [HANDOVER.md](HANDOVER.md) (how to pick this up) · [ROADMAP.md](ROADMAP.md) (phased checklist of what's left)
 
 Update this file at the end of every work session. The detailed phase checklist is in [SIXTH_SENSE_FRONTEND_PLAN.md](SIXTH_SENSE_FRONTEND_PLAN.md); its top-level tracker still says Phase 5 is blocked, but that is out of date (see below).
 
@@ -10,8 +10,9 @@ Update this file at the end of every work session. The detailed phase checklist 
 |---|---|
 | `pnpm typecheck` | ✅ passes |
 | `pnpm lint` | ✅ passes |
-| `pnpm test` | ✅ 38 files, 340 tests passing |
-| Backend tests (`sceneid-backend`) | ✅ 268 passing |
+| `pnpm test` | ✅ 38 files, 343 tests passing |
+| Backend tests (`sceneid-backend`) | ✅ 280 passing |
+| `node scripts/e2e-journey.mjs` (live backend) | ✅ 36 checks passing |
 
 ## Phase status
 
@@ -39,8 +40,25 @@ Every feature reads through a typed data-source interface (`src/features/*/data/
 | Web3: config, wallet link/unlink, transactions, attestations, rewards | ✅ Adapter built. Unlink has a backend lockout risk (see open issues) |
 | World map | 🟡 Geography comes from the pinned gtadb snapshot; backend discoveries are overlaid as a "Discoveries" layer and linked to gtadb places with a `place:<id>` tag |
 | Developer portal | 🟡 Renders from `SIXTH_SENSE_OPENAPI_URL`; the backend's schema is too thin to be useful yet |
-| Notifications, settings | 🟡 Pages exist; check against the backend's `notifications/` and `me/settings/` |
+| Notifications | ❌ **Not built.** `/notifications` is still the Phase 3 `FeaturePlaceholder`: no data source, no adapter, no unread badge. The backend's `notifications/` API is complete and unused |
+| Settings | 🟡 Profile + account panel only. `me/settings/` is never called; no privacy flags, no account deletion |
 | End-to-end validation (plan §5.3) | ❌ Not done: no recorded run of sign-in → upload → analysis → publish → verify against a running backend |
+
+## First live backend run (2026-11-18)
+
+[`scripts/e2e-journey.mjs`](scripts/e2e-journey.mjs) drives the real Next.js routes against a running backend with a cookie jar, signing wallet challenges with a throwaway ed25519 keypair (no browser extension needed). **31 checks passing**: sign-in, every adapter read, wallet state, upload → analysis → publish → detail, and sign-out. Still to run live: comment, vote, attestation, rewards, token refresh (see [ROADMAP.md](ROADMAP.md) Phase A).
+
+What the run found, and what was fixed the same day (backend changes are in `sceneid-backend`, see its PROGRESS.md):
+
+1. **Analysis never succeeded** — the backend forced `tool_choice`, which the current models reject. Fixed; one real Claude call verified. A blank `ANTHROPIC_MODEL` env var also overrode the default; fixed.
+2. **Every account could lock itself out** — sign-in links the wallet, `/web3` offered "Unlink wallet" to everyone, and the backend allowed it (204). Fixed on both sides: the session carries a `walletOnly` flag and the UI hides the action; the backend now returns 409.
+3. **One auth throttle bucket for the whole site** — and token refresh shares that scope, so a throttled refresh would sign players out at random. Fixed: the backend reads `NUM_PROXIES` (default 0, safe) and the frontend forwards the client address on sign-in, refresh and every proxied call. **Production needs `NUM_PROXIES=1` on the backend.**
+4. **Publishing with no note failed** — the frontend sends `description: ""` and the backend rejected it. Fixed on the backend.
+5. **"SceneID" is user-visible in the wallet signing prompt** (`SceneID wallet verification`), on the one screen every player passes through. Still open (Phase E).
+
+The harness itself got one thing wrong along the way worth remembering: POSTing to `/api/backend/…/` *with* a trailing slash earns a 308 from Next.js, which drops the body. `apiUrl()` already strips it; the harness now does too.
+
+Also confirmed: `notifications/`, `notifications/unread-count/` and `me/settings/` are all live and returning 200 on the backend — the gap there is purely frontend.
 
 ## Recent work (newest first)
 
@@ -51,16 +69,16 @@ Every feature reads through a typed data-source interface (`src/features/*/data/
 
 ## Open issues (ranked)
 
-1. **No end-to-end run against the live backend.** Everything in Phase 5 is adapter code plus unit tests.
+1. **A successful contributor vote, attestation and rewards not yet run live.** They need accounts promoted to `contributor`; three confirmations verify a discovery, which sends a devnet memo. (Comment, suggestion, evidence, follow, report, token refresh and the vote refusals are validated: 36 harness checks.)
 2. **Backend catalogue is empty** (0 regions, 0 locations, 0 entities locally): search, regions and analysis grounding return nothing until the official-names seed is approved and imported (backend task).
-3. **Auth throttle through the proxy:** all sign-ins reach Django from the Next server's IP, so the backend's 10/min auth limit is shared by every player. Fix on the backend (`NUM_PROXIES` + forwarded IP) and forward `X-Forwarded-For` from the proxy.
-4. **Wallet unlink locks wallet-only accounts out** (signing in again creates a new account). Needs a backend guard; the UI should warn or hide unlink until then.
-5. **Uploads over 4.5 MB fail on Vercel** (function body limit) while the backend allows 10 MB. Fix: presigned uploads (not built on the backend).
-6. **Leaderboard reputation likely inflated** by a `Sum` over multiple joins (backend).
-7. **Username rename** and `check-username` don't exist on the backend.
+3. **Production must set `NUM_PROXIES=1` on the backend**, or the per-client throttle fix does nothing (the header is safely ignored and the bucket is shared again).
+4. **Uploads over 4.5 MB fail on Vercel** (function body limit) while the backend allows 10 MB. Fix: presigned uploads (not built on the backend).
+5. **Leaderboard reputation likely inflated** by a `Sum` over multiple joins (backend).
+6. **Username rename** and `check-username` don't exist on the backend.
+7. **"SceneID" in the wallet signing prompt** and other user-facing backend strings.
 8. **`SIXTH_SENSE_FRONTEND_PLAN.md` tracker is stale** (says Phase 5 blocked).
 
-Resolved since the audit: the backend now accepts an empty `description` when publishing from an analysis.
+Resolved 2026-11-18 (see the live run above): analysis failing on forced `tool_choice`, blank `ANTHROPIC_MODEL`, wallet unlink lock-out, the shared auth throttle, and publishing with an empty note.
 
 ## Decisions on record
 
@@ -70,4 +88,5 @@ Resolved since the audit: the backend now accepts an empty `description` when pu
 | 2026-11-18 | gtadb.org (CC BY 4.0) is the map base, self-hosted, labelled as an unofficial community layer, kept separate from backend verified data (the backend declines it over leak provenance) |
 | 2026-11-18 | Map tiles synced from GitHub at build time (`pnpm map:sync`) and served statically; Vercel Blob dropped (upload quota) |
 | 2026-11-18 | Sign-in is Solana wallet only, through the backend; JWTs stay in `ss_access` / `ss_refresh` HTTP-only cookies |
+| 2026-11-18 | Every vote needs a reason, Confirm as well as Dispute (keeps the backend's rule; confirmations verify discoveries and award reputation, so they need an audit trail). Votes are final |
 | — | Admin (4.12) paused by request |

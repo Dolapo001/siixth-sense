@@ -227,15 +227,20 @@ function permissionsFor(item: DiscoveryListItem, state: CommunityState, viewer: 
     canSuggest: !closed,
     canAddEvidence: !closed,
     canReport: !own,
-    vote: {
-      allowed: !own && !closed,
-      reason: own
-        ? "You can't verify your own discovery."
-        : closed
-          ? "Rejected discoveries are closed to new votes."
-          : undefined,
-      current: state.votes.get(viewer.username)?.vote ?? null,
-    },
+    vote: (() => {
+      // Mirrors the backend's vote_state: a vote is final.
+      const current = state.votes.get(viewer.username)?.vote ?? null;
+      if (current) return { allowed: false, reason: "You've already voted on this discovery. Votes can't be changed.", current };
+      return {
+        allowed: !own && !closed,
+        reason: own
+          ? "You can't verify your own discovery."
+          : closed
+            ? "Rejected discoveries are closed to new votes."
+            : undefined,
+        current,
+      };
+    })(),
     followingContributor: own ? undefined : following.has(item.contributor.username),
   };
 }
@@ -405,10 +410,9 @@ export function createMockDiscoverySource(): DiscoveryDataSource {
       const state = stateFor(item);
       const permissions = permissionsFor(item, state, viewer)!;
       if (!permissions.vote.allowed) throw new ActionRefusedError(permissions.vote.reason ?? "You can't vote on this.");
-      if (vote === "dispute" && !reason?.trim()) throw new ActionRefusedError("Say why you're disputing it.");
+      // Mirrors the backend: every vote needs a reason, and votes are final.
+      if (!reason?.trim()) throw new ActionRefusedError("Please add a short reason for your vote so others can see why.");
       await delay();
-      const previous = state.votes.get(viewer.username)?.vote;
-      if (previous === "confirm") item.engagement.confirmations -= 1;
       if (vote === "confirm") item.engagement.confirmations += 1;
       state.votes.set(viewer.username, { vote, reason });
       applySampleVoteRule(item, state, viewer);

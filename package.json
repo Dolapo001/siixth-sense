@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "copy:maplibre-worker": "node scripts/copy-maplibre-worker.mjs",
     "brand:assets": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/generate-brand-assets.mjs",
+    "brand:marketing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/generate-marketing-assets.mjs",
     "map:sync": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --disable-warning=ExperimentalWarning scripts/sync-gta-map.mjs"
   },
   "dependencies": {

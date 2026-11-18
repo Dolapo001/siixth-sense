@@ -20,14 +20,17 @@ function jwt(name: string, inSeconds: number) {
   return `${part({ alg: "none" })}.${part({ exp: Math.floor(Date.now() / 1000) + inSeconds, name })}.sig`;
 }
 
-// A minimal stand-in for next/headers cookies(), shared across "requests".
+// Minimal stand-ins for next/headers: cookies() shared across "requests", and
+// headers() for the incoming request (what the host in front of the app set).
 const jar = new Map<string, string>();
+let incoming = new Headers();
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) => (jar.has(name) ? { value: jar.get(name) } : undefined),
     set: (name: string, value: string) => void jar.set(name, value),
     delete: (opts: { name: string } | string) => void jar.delete(typeof opts === "string" ? opts : opts.name),
   }),
+  headers: async () => incoming,
 }));
 
 const envelope = (data: unknown, status = 200) => Response.json({ success: true, message: "OK", data }, { status });
@@ -35,12 +38,13 @@ const failure = (message: string, status: number, code = "conflict") =>
   Response.json({ success: false, message, code, errors: {} }, { status });
 
 /** Fake backend: routes by path; records every call. */
-type Call = { path: string; method: string; auth: string | null; body: unknown };
+type Call = { path: string; method: string; auth: string | null; forwardedFor: string | null; body: unknown };
 let calls: Call[] = [];
 let handler: (call: Call) => Response;
 
 beforeEach(() => {
   jar.clear();
+  incoming = new Headers();
   calls = [];
   vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", API);
   vi.stubGlobal(
@@ -53,6 +57,7 @@ beforeEach(() => {
         path: url.replace(API, ""),
         method: init.method ?? "GET",
         auth: headers.get("authorization"),
+        forwardedFor: headers.get("x-forwarded-for"),
         body: text ? JSON.parse(text) : null,
       };
       calls.push(call);
@@ -160,6 +165,33 @@ describe("wallet sign-in through the backend", () => {
       path === "/auth/refresh/" ? failure("Token is blacklisted", 401, "not_authenticated") : failure("No credentials.", 401, "not_authenticated");
     expect((await (await session()).json()).user).toBeNull();
     expect(jar.size).toBe(0);
+  });
+
+  it("passes the player's address to every backend call the throttles count", async () => {
+    // Without it every player shares the backend's per-IP throttle buckets,
+    // and a throttled token refresh signs the player out.
+    const { challenge, verify, session } = await routes();
+    incoming = new Headers({ "x-forwarded-for": "203.0.113.7" });
+    const fresh = jwt("fresh", 1800);
+    jar.set(ACCESS_COOKIE, jwt("old", -10));
+    // Unique: refreshes are shared for 10s per token, across tests too.
+    jar.set(REFRESH_COOKIE, jwt("refresh-address-test", 604800));
+    handler = ({ path }) =>
+      path === "/auth/wallet/challenge/"
+        ? envelope({ nonce: "n", message: "m", expires_at: "2026-01-01T00:00:00Z" })
+        : path === "/auth/wallet/login/"
+          ? envelope({ access: fresh, refresh: jwt("r", 604800), new_account: false })
+          : path === "/auth/refresh/"
+            ? envelope({ access: fresh, refresh: jwt("rotated", 604800) })
+            : envelope(me);
+
+    await session(); // refresh, then auth/me/
+    await challenge(post({ address: address() }));
+    await verify(post({ nonce: "n", signature: "s" }));
+
+    const paths = calls.map((c) => c.path);
+    expect(paths).toEqual(expect.arrayContaining(["/auth/refresh/", "/auth/me/", "/auth/wallet/challenge/", "/auth/wallet/login/"]));
+    expect(calls.every((c) => c.forwardedFor === "203.0.113.7")).toBe(true);
   });
 
   it("refuses requests from other sites", async () => {

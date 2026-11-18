@@ -31,7 +31,8 @@ export const evidenceSchema = z.object({
     .optional(),
 });
 
-export const disputeSchema = z.object({
+/** Every vote, confirm or dispute, needs a reason: the backend requires one. */
+export const voteReasonSchema = z.object({
   reason: z
     .string()
     .trim()
@@ -49,7 +50,7 @@ export const reportSchema = z.object({
 export type CommentInput = z.infer<typeof commentSchema>;
 export type SuggestionInput = z.infer<typeof suggestionSchema>;
 export type EvidenceInput = z.infer<typeof evidenceSchema>;
-export type DisputeInput = z.infer<typeof disputeSchema>;
+export type VoteReasonInput = z.infer<typeof voteReasonSchema>;
 export type ReportInput = z.infer<typeof reportSchema>;
 
 export const shareSchema = z.object({

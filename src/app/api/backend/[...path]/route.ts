@@ -29,6 +29,7 @@ async function proxy(request: Request, ctx: RouteContext<"/api/backend/[...path]
   if (!allowedPath(path)) return refuse(404, "not_found", "Not found.");
   if (UNSAFE.has(request.method) && !isSameOrigin(request)) return crossSiteRefusal();
 
+  // backendFetch adds the player's address headers for the backend's throttles.
   const headers: Record<string, string> = {};
   for (const name of REQUEST_HEADERS) {
     const value = request.headers.get(name);

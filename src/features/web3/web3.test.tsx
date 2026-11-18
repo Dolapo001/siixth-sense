@@ -9,10 +9,11 @@ import type { WalletControls } from "./wallet";
 vi.stubEnv("NEXT_PUBLIC_ENABLE_DEV_MOCKS", "true");
 
 let signedIn = true;
+let walletOnly = false;
 vi.mock("@/features/authentication/session", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/authentication/session")>()),
   getSession: async () =>
-    signedIn ? { user: { username: "sample_viewer", displayName: "You (sample viewer)" } } : null,
+    signedIn ? { user: { username: "sample_viewer", displayName: "You (sample viewer)" }, walletOnly } : null,
 }));
 
 let search = "";
@@ -55,6 +56,7 @@ const controls = (overrides: Partial<WalletControls> = {}): WalletControls => ({
 
 beforeEach(async () => {
   signedIn = true;
+  walletOnly = false;
   search = "";
   // Start each test with no linked wallet.
   await createMockWeb3Source().unlinkWallet();
@@ -195,6 +197,23 @@ describe("IdentityView", () => {
     await userEvent.click(screen.getByRole("button", { name: "Verify ownership" }));
     expect(await screen.findByText("Verified")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlink wallet" })).toBeInTheDocument();
+  });
+
+  it("never offers to unlink the wallet an account signs in with", async () => {
+    // Wallet-only accounts have no other way in: unlinking would lock them out
+    // for good, and the backend has no guard yet.
+    walletOnly = true;
+    const wallet = await makeWallet();
+    withQuery(
+      <IdentityView
+        source={createMockWeb3Source()}
+        controls={controls({ connected: true, address: wallet.address, signMessage: wallet.sign })}
+      />,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Verify ownership" }));
+    expect(await screen.findByText("Verified")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Unlink wallet" })).not.toBeInTheDocument();
+    expect(screen.getByText(/this wallet is how you sign in/i)).toBeInTheDocument();
   });
 
   it("explains a cancelled signature and links nothing", async () => {

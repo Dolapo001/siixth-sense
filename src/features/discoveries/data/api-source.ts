@@ -260,7 +260,7 @@ export function createApiDiscoverySource(): DiscoveryDataSource {
         toDetail(
           await api<BackendDetail>(`discoveries/${encodeURIComponent(discoveryId)}/votes/`, {
             method: "POST",
-            body: { vote, reason: reason ?? "" },
+            body: { vote, reason },
           }),
         ),
       ),

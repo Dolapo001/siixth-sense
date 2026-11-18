@@ -6,51 +6,77 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/field";
-import { disputeSchema, type DisputeInput } from "@/features/community/schemas";
+import { voteReasonSchema, type VoteReasonInput } from "@/features/community/schemas";
 import type { ViewerPermissions, Vote } from "@/features/discoveries/types";
 import { succeeded } from "@/features/community/hooks";
 import { ActionError, SignInPrompt } from "./action-bits";
 
 type VotePanelProps = {
   viewer: ViewerPermissions | null;
-  onVote: (vote: Vote, reason?: string) => Promise<unknown>;
+  onVote: (vote: Vote, reason: string) => Promise<unknown>;
   pending: boolean;
   error: string | null;
 };
 
+const form: Record<Vote, { label: string; placeholder: string; submit: string; variant: "primary" | "warning" }> = {
+  confirm: {
+    label: "Why does it check out?",
+    placeholder: "e.g. The badge and tail lights match this model",
+    submit: "Submit confirmation",
+    variant: "primary",
+  },
+  dispute: {
+    label: "Why are you disputing it?",
+    placeholder: "e.g. The wheels don't match this model",
+    submit: "Submit dispute",
+    variant: "warning",
+  },
+};
+
 /**
  * Confirm or dispute a discovery. Eligibility and the resulting status come
- * from the server; a dispute always needs a reason reviewers can check.
+ * from the server. Every vote needs a reason reviewers can check (the server
+ * requires one), and a vote is final: it can't be changed or withdrawn.
  */
 export function VotePanel({ viewer, onVote, pending, error }: VotePanelProps) {
-  const [disputing, setDisputing] = useState(false);
-  // Closing the dispute form unmounts the focused control; hand focus back to
-  // Dispute as it remounts. The callback only changes when returnFocus does,
-  // so it focuses once rather than on every render.
-  const [returnFocus, setReturnFocus] = useState(false);
-  const focusDisputeOnReturn = useCallback(
-    (button: HTMLButtonElement | null) => {
-      if (button && returnFocus) button.focus();
+  const [voting, setVoting] = useState<Vote | null>(null);
+  // Closing the form unmounts the focused control; hand focus back to the
+  // button that opened it as it remounts. The callback only changes when
+  // returnFocus does, so it focuses once rather than on every render.
+  const [returnFocus, setReturnFocus] = useState<Vote | null>(null);
+  const focusOnReturn = useCallback(
+    (vote: Vote) => (button: HTMLButtonElement | null) => {
+      if (button && returnFocus === vote) button.focus();
     },
     [returnFocus],
   );
 
-  const openDispute = () => {
-    setReturnFocus(false);
-    setDisputing(true);
+  const open = (vote: Vote) => {
+    setReturnFocus(null);
+    setVoting(vote);
   };
-  const closeDispute = () => {
-    setReturnFocus(true);
-    setDisputing(false);
+  const close = () => {
+    setReturnFocus(voting);
+    setVoting(null);
   };
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<DisputeInput>({ resolver: zodResolver(disputeSchema) });
+  } = useForm<VoteReasonInput>({ resolver: zodResolver(voteReasonSchema) });
 
   if (!viewer) return <SignInPrompt action="confirm or dispute discoveries" />;
+
+  const current = viewer.vote.current;
+  if (current) {
+    return (
+      <p className="flex items-start gap-2 text-small text-muted" role="status">
+        <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+        You {current === "confirm" ? "confirmed" : "disputed"} this. Votes can&apos;t be changed.
+      </p>
+    );
+  }
   if (!viewer.vote.allowed) {
     return (
       <p className="flex items-start gap-2 text-small text-muted">
@@ -60,68 +86,44 @@ export function VotePanel({ viewer, onVote, pending, error }: VotePanelProps) {
     );
   }
 
-  const current = viewer.vote.current;
-
   return (
     <div className="flex flex-col gap-3">
-      {current && (
-        <p className="text-small text-muted" role="status">
-          You {current === "confirm" ? "confirmed" : "disputed"} this. You can change your vote.
-        </p>
+      {!voting && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <Button ref={focusOnReturn("confirm")} variant="secondary" disabled={pending} onClick={() => open("confirm")}>
+              <CircleCheck aria-hidden />
+              Confirm
+            </Button>
+            <Button ref={focusOnReturn("dispute")} variant="warning" disabled={pending} onClick={() => open("dispute")}>
+              <TriangleAlert aria-hidden />
+              Dispute
+            </Button>
+          </div>
+          <p className="text-meta text-muted">You&apos;ll be asked why. Votes are final.</p>
+        </>
       )}
-      {!disputing && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={current === "confirm" ? "primary" : "secondary"}
-            aria-pressed={current === "confirm"}
-            // aria-disabled, not disabled: keeps the pressed state reachable by keyboard.
-            aria-disabled={current === "confirm"}
-            loading={pending}
-            onClick={() => {
-              if (current !== "confirm") void succeeded(onVote("confirm"));
-            }}
-          >
-            <CircleCheck aria-hidden />
-            Confirm
-          </Button>
-          <Button
-            ref={focusDisputeOnReturn}
-            variant="warning"
-            aria-pressed={current === "dispute"}
-            disabled={pending}
-            onClick={openDispute}
-          >
-            <TriangleAlert aria-hidden />
-            Dispute
-          </Button>
-        </div>
-      )}
-      {disputing && (
+      {voting && (
         <form
           noValidate
           className="flex flex-col gap-3"
           onSubmit={handleSubmit(async ({ reason }) => {
-            if (await succeeded(onVote("dispute", reason))) {
+            if (await succeeded(onVote(voting, reason))) {
               reset();
-              closeDispute();
+              setVoting(null);
             }
           })}
         >
-          <Field label="Why are you disputing it?" required error={errors.reason?.message}>
+          <Field label={form[voting].label} required error={errors.reason?.message}>
             {(control) => (
-              <Textarea
-                {...control}
-                {...register("reason")}
-                placeholder="e.g. The wheels don't match this model"
-                autoFocus
-              />
+              <Textarea {...control} {...register("reason")} placeholder={form[voting].placeholder} autoFocus />
             )}
           </Field>
           <div className="flex gap-2">
-            <Button type="submit" variant="warning" loading={pending}>
-              Submit dispute
+            <Button type="submit" variant={form[voting].variant} loading={pending}>
+              {form[voting].submit}
             </Button>
-            <Button variant="ghost" onClick={closeDispute}>
+            <Button variant="ghost" onClick={close}>
               Cancel
             </Button>
           </div>

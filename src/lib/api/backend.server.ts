@@ -7,7 +7,7 @@
  * expired the refresh token is exchanged for a new pair first.
  */
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { apiBaseUrl } from "./config";
 
 export const ACCESS_COOKIE = "ss_access";
@@ -25,6 +25,29 @@ export class BackendUnavailableError extends Error {
     super("The Sixth Sense backend isn't configured (NEXT_PUBLIC_API_BASE_URL).");
     this.name = "BackendUnavailableError";
   }
+}
+
+/*
+ * Who the player is, for the backend's per-IP throttles. Every request to the
+ * backend comes from this server, so without these the whole site shares one
+ * throttle bucket (the 10/min auth limit especially).
+ *
+ * They are only trustworthy because the host in front of this app sets them.
+ * The backend decides how far to trust them with NUM_PROXIES, which must match
+ * the proxies actually in front of it; with its default of 0 they are ignored,
+ * which is the safe failure mode.
+ */
+const CLIENT_ADDRESS_HEADERS = ["x-forwarded-for", "x-real-ip"];
+
+/** The player's address headers from the incoming request, to pass on to the backend. */
+export async function clientAddressHeaders(): Promise<Record<string, string>> {
+  const incoming = await headers();
+  const forwarded: Record<string, string> = {};
+  for (const name of CLIENT_ADDRESS_HEADERS) {
+    const value = incoming.get(name);
+    if (value) forwarded[name] = value;
+  }
+  return forwarded;
 }
 
 export function backendUrl(path: string) {
@@ -75,11 +98,16 @@ export async function clearTokens() {
 const refreshing = new Map<string, Promise<TokenPair | null>>();
 
 async function exchangeRefreshToken(refresh: string): Promise<TokenPair | null> {
+  // Refresh is throttled per IP like sign-in, and a throttled refresh signs
+  // the player out (below), so it must carry the player's own address. Read
+  // it before the map lookup: an await between the lookup and the set would
+  // let two requests both miss and both rotate the token.
+  const address = await clientAddressHeaders();
   let pending = refreshing.get(refresh);
   if (!pending) {
     pending = fetch(backendUrl("auth/refresh/"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...address },
       body: JSON.stringify({ refresh }),
       cache: "no-store",
     })
@@ -126,10 +154,11 @@ type BackendInit = { method?: string; headers?: Record<string, string>; body?: B
  * `body` must be replayable (a string or buffer), since a retry sends it again.
  */
 export async function backendFetch(path: string, init: BackendInit = {}): Promise<Response> {
+  const address = await clientAddressHeaders();
   const send = (token: string | null) =>
     fetch(backendUrl(path), {
       method: init.method ?? "GET",
-      headers: { ...init.headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { ...address, ...init.headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: init.body,
       signal: init.signal,
       cache: "no-store",

@@ -34,8 +34,11 @@ export interface DiscoveryDataSource {
     input: Pick<IdentificationSuggestion, "label" | "category" | "note">,
   ): Promise<IdentificationSuggestion>;
   addEvidence(discoveryId: string, input: { text: string; url?: string }): Promise<EvidenceItem>;
-  /** Returns the discovery as the server now sees it; status changes are the server's call. */
-  vote(discoveryId: string, vote: Vote, reason?: string): Promise<DiscoveryDetail>;
+  /**
+   * Returns the discovery as the server now sees it; status changes are the
+   * server's call. Every vote needs a reason, and a vote is final.
+   */
+  vote(discoveryId: string, vote: Vote, reason: string): Promise<DiscoveryDetail>;
   report(target: ReportTarget, reason: ReportReason, details?: string): Promise<{ reportId: string }>;
   setFollowing(username: string, following: boolean): Promise<{ following: boolean }>;
   /** Shares an analysed screenshot as a new discovery, awaiting community verification. */

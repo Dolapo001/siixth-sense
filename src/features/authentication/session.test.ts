@@ -20,6 +20,6 @@ describe("getSession", () => {
   it("signs in the sample viewer only when both are switched on", async () => {
     vi.stubEnv("NEXT_PUBLIC_ENABLE_DEV_MOCKS", "true");
     vi.stubEnv("NEXT_PUBLIC_DEV_SAMPLE_VIEWER", "true");
-    expect(await getSession()).toEqual({ user: SAMPLE_VIEWER });
+    expect(await getSession()).toEqual({ user: SAMPLE_VIEWER, walletOnly: false });
   });
 });

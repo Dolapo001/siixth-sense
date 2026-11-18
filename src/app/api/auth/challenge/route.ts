@@ -1,7 +1,7 @@
 import { crossSiteRefusal, isSameOrigin } from "@/features/authentication/server/same-origin.server";
 import { isSolanaAddress } from "@/features/authentication/server/wallet.server";
 import { backendRefusal, forwardBackendError } from "@/features/authentication/server/auth-responses.server";
-import { BackendUnavailableError, backendUrl } from "@/lib/api/backend.server";
+import { BackendUnavailableError, backendUrl, clientAddressHeaders } from "@/lib/api/backend.server";
 import { readEnvelope } from "@/lib/api/client";
 
 /**
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     const response = await fetch(backendUrl("auth/wallet/challenge/"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientAddressHeaders()) },
       body: JSON.stringify({ address: body.address }),
       cache: "no-store",
     });

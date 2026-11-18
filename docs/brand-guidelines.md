@@ -238,6 +238,17 @@ Generated at request time from the same geometry: Apple touch icon (`src/app/app
 
 All SVGs use editable paths only. They contain no raster images, no filters and no external references.
 
+### Marketing kit
+
+`pnpm brand:marketing` writes PNG + SVG files to `public/brand/marketing/` from the same geometry, with the original night-skyline art (`public/landing/skyline-night.svg`) behind the banners. PNGs need `rsvg-convert` (librsvg) installed.
+
+| Folder | Contents |
+|---|---|
+| `logos/` | Horizontal and stacked logos (primary, light, dark) as 2400 px PNGs with transparent backgrounds; symbols at 1024 px; logo on a Midnight plate; square 1024 px avatar |
+| `banners/` | X header 1500×500, Open Graph 1200×630, LinkedIn cover 1584×396, Discord 960×540, YouTube 2560×1440, square post 1080×1080, wide 1920×1080 |
+
+The X header and other centred banners keep the logo in the middle, away from where platforms overlay the profile picture. The skyline art is a placeholder (see `docs/landing-assets.md`); when licensed art replaces it, re-run the script and check the detection frame on the tower (`TOWER` in the script).
+
 ---
 
 ## 12. Legacy identifiers

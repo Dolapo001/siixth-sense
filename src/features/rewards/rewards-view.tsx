@@ -8,6 +8,7 @@ import { ErrorState, LoadingState, PermissionDeniedState, UnavailableState } fro
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { CopyableValue, ExplorerLink } from "@/components/web3/web3-bits";
 import type { Web3DataSource } from "@/features/web3/data/source";
+import { NetworkBadge } from "@/features/web3/network-badge";
 import { useLinkedWallet, useRewards, useWeb3Source } from "@/features/web3/hooks";
 import type { RewardActivityStatus, RewardPayout, Rewards } from "@/features/web3/types";
 
@@ -24,19 +25,13 @@ const payoutStatus: Record<RewardPayout["status"], { label: string; tone: BadgeT
   failed: { label: "Failed", tone: "signal" },
 };
 
-function Header({ sample }: { sample: boolean }) {
+function Header() {
   return (
     <PageHeader
       eyebrow="Contributions"
       title="Rewards"
       description="Rewards follow verified work. Uploading on its own never earns anything."
-      actions={
-        sample ? (
-          <Badge tone="signal" className="self-start">
-            Sample data · devnet
-          </Badge>
-        ) : undefined
-      }
+      actions={<NetworkBadge />}
     />
   );
 }
@@ -46,7 +41,7 @@ export function RewardsView() {
   if (source.isPending) {
     return (
       <PageContainer>
-        <Header sample={false} />
+        <Header />
         <LoadingState label="Loading rewards" />
       </PageContainer>
     );
@@ -54,7 +49,7 @@ export function RewardsView() {
   if (source.isError) {
     return (
       <PageContainer>
-        <Header sample={false} />
+        <Header />
         <ErrorState onRetry={() => source.refetch()} />
       </PageContainer>
     );
@@ -62,7 +57,7 @@ export function RewardsView() {
   if (!source.data) {
     return (
       <PageContainer>
-        <Header sample={false} />
+        <Header />
         <UnavailableState description="Rewards come from the Sixth Sense backend, which isn't connected yet." />
       </PageContainer>
     );
@@ -74,7 +69,7 @@ function Loaded({ source }: { source: Web3DataSource }) {
   const rewards = useRewards(source);
   return (
     <PageContainer>
-      <Header sample={source.kind === "sample"} />
+      <Header />
       {rewards.isPending ? (
         <LoadingState label="Loading rewards" />
       ) : rewards.isError ? (

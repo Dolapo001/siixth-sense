@@ -176,7 +176,7 @@ Three places where a page exists but the feature does not.
 
 - [ ] Postgres 16 + pgvector and Redis, provisioned. The code side is done: `DATABASE_URL` and `CACHE_URL` are read from env, and with `DEBUG=false` the server refuses to start on SQLite or without `CACHE_URL` (throttles must be shared by every worker)
 - [ ] Celery worker + beat (beat polls pending attestations; without it a pending tx stays pending forever)
-- [ ] S3 on a real bucket (code ready, never run against one)
+- [ ] Cloudinary live check: storage replaced S3 on 2026-11-18 (`STORAGE_BACKEND=cloudinary` + `CLOUDINARY_URL`; private `authenticated` assets, signed CDN links). Tested offline; needs one real upload/read/delete once credentials are in
 - [ ] SMTP (email goes to the console backend today)
 - [ ] Secret store for `SECRET_KEY`, the Solana issuer key and the RPC URL
 - [ ] First CI run on GitHub (`.github/workflows/ci.yml` has never executed)
@@ -225,3 +225,4 @@ These gate real chunks of the work above.
 | 2026-11-18 | Map tiles synced from GitHub at build time and served statically; Vercel Blob dropped |
 | 2026-11-18 | Sign-in is Solana wallet only, through the backend; JWTs stay in `ss_access` / `ss_refresh` HTTP-only cookies |
 | 2026-11-18 | Every vote needs a reason, Confirm as well as Dispute; votes are final |
+| 2026-11-18 | File storage moves from S3 to Cloudinary. Assets private (`authenticated`); delivered by signed CDN links that don't expire (expiring ones cost 2x bandwidth or need the Advanced plan) |

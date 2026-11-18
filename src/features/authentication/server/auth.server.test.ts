@@ -32,6 +32,11 @@ vi.mock("next/headers", () => ({
   }),
   headers: async () => incoming,
 }));
+// connection() only marks a route as request-time; outside a real Next.js request it throws.
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: async () => {},
+}));
 
 const envelope = (data: unknown, status = 200) => Response.json({ success: true, message: "OK", data }, { status });
 const failure = (message: string, status: number, code = "conflict") =>

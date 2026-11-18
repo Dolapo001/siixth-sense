@@ -84,7 +84,9 @@ describe("MapLegend", () => {
     expect(screen.getByText("Landmarks")).toBeVisible();
     // Layers that need Sixth Sense data are listed as not yet available, not drawn.
     expect(screen.getByText("Vehicle sightings")).toBeVisible();
-    expect(screen.getByText(/community-placed and unofficial/)).toBeVisible();
+    // The map's licence requires credit; it isn't labelled unofficial.
+    expect(screen.getByRole("link", { name: "gtadb.org" })).toBeVisible();
+    expect(screen.queryByText(/unofficial/i)).not.toBeInTheDocument();
   });
 });
 

@@ -9,6 +9,7 @@ import { api, ApiError, apiUrl, readEnvelope } from "@/lib/api/client";
 import { fromBackendCategory, toConfidenceLevel, toPrecision } from "@/lib/api/mappers";
 import { getWorldDataSource } from "@/features/world/data/source";
 import { placesFromAnalysis } from "../place-matching";
+import { fitForUpload, PICKABLE_LIMIT, PROXY_UPLOAD_LIMIT } from "../shrink-image";
 import type { AnalysisJob, Detection, JobStatus, LocationMatch } from "../types";
 import { UploadCancelledError, type AnalysisDataSource } from "./source";
 
@@ -126,10 +127,16 @@ export async function createApiAnalysisSource(): Promise<AnalysisDataSource> {
 
   return {
     kind: "live",
-    constraints: { maxBytes: limits.maxBytes, acceptedTypes: limits.acceptedTypes },
+    // Oversized screenshots are shrunk to fit the proxy before upload (see shrink-image.ts), as long as
+    // the backend takes the JPEG that produces.
+    constraints: {
+      maxBytes: limits.acceptedTypes.includes("image/jpeg") ? Math.max(limits.maxBytes, PICKABLE_LIMIT) : limits.maxBytes,
+      acceptedTypes: limits.acceptedTypes,
+    },
     pollIntervalMs: limits.pollIntervalMs,
 
-    upload(file, { onProgress, signal }) {
+    async upload(original, { onProgress, signal }) {
+      const file = await fitForUpload(original, { limit: Math.min(PROXY_UPLOAD_LIMIT, limits.maxBytes) });
       return new Promise((resolve, reject) => {
         if (signal.aborted) return reject(new UploadCancelledError());
         // XMLHttpRequest, not fetch: fetch can't report upload progress.
@@ -181,7 +188,10 @@ export async function createApiAnalysisSource(): Promise<AnalysisDataSource> {
       if (status === "completed") {
         result.detections = job.entities.map(toDetection);
         const places = await worldPlacesFor(job.scene_context, result.detections);
-        result.locationMatches = [...job.location_matches.map(toBackendMatch), ...places];
+        // Most precise first: backend places, then map places, then whole regions (often a guess from the scenery).
+        const backend = job.location_matches.map(toBackendMatch);
+        const isRegion = (m: LocationMatch) => m.precision === "region";
+        result.locationMatches = [...backend.filter((m) => !isRegion(m)), ...places, ...backend.filter(isRegion)];
       }
       return result;
     },

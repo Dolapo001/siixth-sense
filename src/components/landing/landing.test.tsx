@@ -67,9 +67,9 @@ describe("MapPreview (real GTA VI data)", () => {
     expect(tiles.every((tile) => /\/13\/\d+\/\d+\.jpg$/.test(tile.src))).toBe(true);
   });
 
-  it("credits the community map and says it's unofficial", () => {
+  it("credits the map as its licence requires, without calling it unofficial", () => {
     preview();
-    expect(screen.getByText(/Community layer/)).toBeInTheDocument();
+    expect(screen.queryByText(/unofficial|community layer/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "gtadb.org" })).toHaveAttribute("href", "https://map.gtadb.org");
   });
 

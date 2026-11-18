@@ -69,17 +69,13 @@ export function LegendContent() {
           </span>
           Group of places: click to zoom in
         </li>
-        <li className="flex items-center gap-2 text-muted">
-          <span aria-hidden className="size-3.5" />
-          Positions are community-placed and unofficial
-        </li>
       </ul>
       <p className="border-t border-border pt-3 text-meta text-muted">
-        <span className="text-fg">About the base map:</span> a community layer from{" "}
+        <span className="text-fg">Map data:</span>{" "}
         <a href="https://map.gtadb.org" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
           gtadb.org
         </a>{" "}
-        (CC BY 4.0), separate from Sixth Sense&apos;s verified data and not from Rockstar Games.
+        (CC BY 4.0).
       </p>
     </div>
   );

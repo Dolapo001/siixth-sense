@@ -56,7 +56,10 @@ export function placesFromAnalysis(
     ...(analysis.candidateLocation ? [clue(analysis.candidateLocation, "Named by the analysis")] : []),
   ].filter((c) => c.normalized);
 
-  const places = markers.filter((m) => m.nameKnown !== false && m.coordinate && normalize(m.title).length >= 4);
+  // Discovery markers sit at places and reuse their ids, but their titles are player-written, not place names.
+  const places = markers.filter(
+    (m) => m.layer !== "discoveries" && m.nameKnown !== false && m.coordinate && normalize(m.title).length >= 4,
+  );
   const found: { match: LocationMatch; strength: number }[] = [];
   for (const place of places) {
     const name = normalize(place.title);

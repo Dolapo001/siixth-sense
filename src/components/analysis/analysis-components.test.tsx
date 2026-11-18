@@ -71,8 +71,40 @@ describe("ScreenshotStage", () => {
         onSelect={vi.fn()}
       />,
     );
-    const box = screen.getByRole("button", { name: "Sample vehicle 1, high confidence, 87%" });
+    const box = screen.getByRole("button", { name: "1. Sample vehicle 1, high confidence, 87%" });
     expect(box).toHaveStyle({ left: "10%", top: "20%", width: "30%", height: "40%" });
+  });
+
+  it("numbers boxes like the list, and draws big boxes under small ones", () => {
+    render(
+      <ScreenshotStage
+        src="blob:x"
+        alt="shot"
+        scanning={false}
+        detections={[
+          detection({ id: "small", label: "Small", box: { x: 0.4, y: 0.4, width: 0.1, height: 0.1 } }),
+          detection({ id: "big", label: "Big", box: { x: 0, y: 0, width: 0.9, height: 0.9 } }),
+        ]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    const boxes = within(screen.getByRole("group", { name: "Detections in screenshot" })).getAllByRole("button");
+    // DOM order is paint order: the big one first, so the small one is on top.
+    expect(boxes.map((b) => b.getAttribute("aria-label"))).toEqual([
+      "2. Big, high confidence, 87%",
+      "1. Small, high confidence, 87%",
+    ]);
+  });
+
+  it("hides and shows the boxes", async () => {
+    render(
+      <ScreenshotStage src="blob:x" alt="shot" scanning={false} detections={[detection()]} selectedId={null} onSelect={vi.fn()} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Hide boxes" }));
+    expect(screen.queryByRole("group", { name: "Detections in screenshot" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show boxes" }));
+    expect(screen.getByRole("group", { name: "Detections in screenshot" })).toBeInTheDocument();
   });
 
   it("doesn't draw detections that have no box", () => {
@@ -86,7 +118,7 @@ describe("ScreenshotStage", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(within(screen.getByRole("group", { name: "Detections in screenshot" })).getAllByRole("button")).toHaveLength(1);
   });
 
   it("selects a detection and marks it pressed", async () => {
@@ -101,7 +133,7 @@ describe("ScreenshotStage", () => {
         onSelect={onSelect}
       />,
     );
-    await userEvent.click(screen.getByRole("button"));
+    await userEvent.click(screen.getByRole("button", { name: /Sample vehicle 1/ }));
     expect(onSelect).toHaveBeenCalledWith("d1");
     rerender(
       <ScreenshotStage
@@ -113,20 +145,46 @@ describe("ScreenshotStage", () => {
         onSelect={onSelect}
       />,
     );
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Sample vehicle 1/ })).toHaveAttribute("aria-pressed", "true");
   });
 });
 
 describe("DetectionList", () => {
   it("shows identity, confidence wording and AI-suggested status", () => {
-    render(<DetectionList detections={[detection()]} selectedId={null} onSelect={vi.fn()} />);
+    render(<DetectionList detections={[detection()]} selectedId="d1" onSelect={vi.fn()} />);
     expect(screen.getByText("Sample vehicle 1")).toBeInTheDocument();
     expect(screen.getByText("High confidence")).toBeInTheDocument();
     expect(screen.getByText("AI suggested")).toBeInTheDocument();
   });
 
+  it("keeps cards compact, numbered like their boxes, and opens only the selected one", async () => {
+    const onSelect = vi.fn();
+    const evidence = { evidence: ["Blue 'POLICE' lettering"] };
+    const { rerender } = render(
+      <DetectionList
+        detections={[detection(evidence), detection({ ...evidence, id: "d2", label: "Second" })]}
+        selectedId={null}
+        onSelect={onSelect}
+      />,
+    );
+    expect(screen.queryByText("Blue 'POLICE' lettering")).not.toBeInTheDocument();
+    const second = screen.getByRole("button", { name: /Detection 2.*Second/ });
+    expect(second).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(second);
+    expect(onSelect).toHaveBeenCalledWith("d2");
+    rerender(
+      <DetectionList
+        detections={[detection(evidence), detection({ ...evidence, id: "d2", label: "Second" })]}
+        selectedId="d2"
+        onSelect={onSelect}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Detection 2.*Second/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByText("Blue 'POLICE' lettering")).toHaveLength(1);
+  });
+
   it("says when a detection has no position", () => {
-    render(<DetectionList detections={[detection({ box: null })]} selectedId={null} onSelect={vi.fn()} />);
+    render(<DetectionList detections={[detection({ box: null })]} selectedId="d1" onSelect={vi.fn()} />);
     expect(screen.getByText("Position in screenshot not provided")).toBeInTheDocument();
   });
 
@@ -136,7 +194,7 @@ describe("DetectionList", () => {
         detections={[
           detection({ relatedLocations: [{ id: "sample-07", name: "Sample location", precision: "approximate" }] }),
         ]}
-        selectedId={null}
+        selectedId="d1"
         onSelect={vi.fn()}
       />,
     );
@@ -165,10 +223,23 @@ describe("LocationMatches", () => {
 
   it("says when the matched place isn't on the World map", async () => {
     withQuery(
-      <LocationMatches matches={[{ locationId: "nope", name: "Somewhere", precision: "region", confidence: 0.4 }]} />,
+      <LocationMatches matches={[{ locationId: "nope", name: "Somewhere", precision: "approximate", confidence: 0.4 }]} />,
     );
     expect(await screen.findByText(/isn't on the World map yet/)).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /Map around/ })).not.toBeInTheDocument();
+  });
+
+  it("shows a likely region with why, without pretending it's a point on the map", () => {
+    withQuery(
+      <LocationMatches
+        matches={[{ locationId: "region:ob", name: "Ocean Beach", precision: "region", basis: "Likely, from the scenery" }]}
+      />,
+    );
+    expect(screen.getByText("Ocean Beach")).toBeInTheDocument();
+    expect(screen.getByText("Likely, from the scenery")).toBeInTheDocument();
+    expect(screen.getByText("Region only")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "View on map" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/isn't on the World map yet/)).not.toBeInTheDocument();
   });
 
   it("numbers candidates when there are several", () => {

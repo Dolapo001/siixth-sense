@@ -39,7 +39,7 @@ Tick a box only when the item is done **and verified**. Items marked 🔒 are bl
 
 ## Phase A — Close the loop
 
-**✅ Essentially done (2026-11-18): 46 checks passing with `--verify`.** The adapters had never been exercised against a running backend. [`scripts/e2e-journey.mjs`](scripts/e2e-journey.mjs) now does it: it drives the real Next.js routes over HTTP with a cookie jar, signing the wallet challenges with a throwaway ed25519 keypair instead of a browser extension, so no Phantom install is needed. It covers sign-in → upload → analysis → publish → community actions → three confirmations → verified → reputation → devnet Proof of Discovery. Left: rewards with real amounts (no reward rules are seeded), entity/location results (need the catalogue), and turning the harness into CI integration tests.
+**✅ Essentially done (2026-11-18): 46 checks passing with `--verify`.** The adapters had never been exercised against a running backend. [`scripts/e2e-journey.mjs`](scripts/e2e-journey.mjs) now does it: it drives the real Next.js routes over HTTP with a cookie jar, signing the wallet challenges with a throwaway ed25519 keypair instead of a browser extension, so no Phantom install is needed. It covers sign-in → upload → analysis → publish → community actions → confirmations → verified → reputation → devnet Proof of Discovery. Left: rewards with real amounts (no reward rules are seeded), entity/location results (need the catalogue), and turning the harness into CI integration tests.
 
 ```bash
 node scripts/e2e-journey.mjs
@@ -113,12 +113,12 @@ Backend repo. Can run in parallel with Phase A; items 1–3 are bugs, 4–5 are 
 - [x] **Blank `ANTHROPIC_MODEL` treated as a real value** — fixed 2026-11-18.
 - [x] **`ANALYZER_BACKEND` env seam** — added 2026-11-18, with an offline `SampleAnalyzer`.
 - [x] **Publishing with an empty note returned 400** — fixed 2026-11-18, see Phase A.
-- [ ] **Leaderboard reputation inflated.** `Sum("reputation_events__points")` is annotated alongside `Count` over other joins — use a subquery.
+- [x] **Leaderboard reputation inflated** — fixed 2026-11-18. Reputation, verified and reviews are now one correlated subquery each; the old joined aggregate multiplied reputation by (verified × reviews). Regression test included.
 - [ ] Username rename + `check-username` (frontend refuses renames today)
 - [ ] `avatar_id` (avatar is stored as a URL to a preset as a workaround)
 - [ ] Profile `areas` / `by_category` / `viewer_is_owner`
 - [ ] Contributor objects instead of username strings in list responses
-- [ ] **Presigned uploads** — Vercel caps request bodies at 4.5 MB while the backend accepts 10 MB, so large screenshots will fail in production
+- [x] **Large screenshots on Vercel** — handled on the frontend 2026-11-18: screenshots over 4 MB are re-encoded in the browser as JPEG (up to 4K, stepping down quality then size) before going through the proxy, so players can pick originals up to 40 MB. Presigned uploads straight to S3 would still be better at scale.
 
 Frontend interim, until the unlink guard lands:
 
@@ -137,7 +137,7 @@ Three places where a page exists but the feature does not.
 - [x] Each notification links to its page: discovery (comments jump to `#comment-<id>`, now anchored on the discovery page), profile, rewards, wallet, Analyze. Moderator warnings show the moderator's note
 - [x] Unread badge on the rail bell and the mobile top bar; polls every 60s and on focus; in the link's accessible name ("Notifications, 4 unread"); rendered only after hydration
 - [x] Mute by group (`PUT notifications/preferences`), keeping kinds the screen doesn't know about. Moderation (warnings, report outcomes) is never offered for muting
-- [ ] Backend: `notify()` honours mutes for *every* kind, so the API would accept muting moderator warnings. Exempt `warning` (and probably `report_*`) on the backend
+- [x] Backend: moderator warnings and report outcomes can no longer be muted (`UNMUTABLE` in `notifications/services.py`; the preferences endpoint drops them too) — fixed 2026-11-18
 - [ ] "Open Analyze" can't open the specific analysis yet: the Analyze page has no job deep link (`/analyze?job=…`)
 
 **Settings** — ✅ done 2026-11-18, verified in the browser against the live backend, including a real deletion of a throwaway test account.
@@ -148,11 +148,7 @@ Three places where a page exists but the feature does not.
 - [x] Delete account: type DELETE (plus the password, for accounts that have one), with the consequences spelled out first, including that signing in with the same wallet afterwards starts a new, empty account. Signs out and returns home
 - [x] **Hydration fix across the app:** `useSession()` now reads as pending until the calling component has hydrated. The rail fetching the session early (for the unread badge) made later boundaries (Settings' account panel) hydrate with a session the server never rendered. Regression test renders server HTML, hydrates with a cached session and asserts no hydration error
 
-**Admin (4.12)** — un-pause when the owner says so. `admin/reports/*` already exists on the backend.
-
-- [ ] Report moderation queue first (`GET admin/reports/queue`, resolve dismiss/action, `remove_content` / `warn_user`)
-- [ ] Verification and dispute queues
-- [ ] Admin stats
+**Admin (4.12)** — dropped 2026-11-18 (see Phases 1–4). Moderation lives in the backend's Django admin: discoveries, votes, disputes and reports are registered there, with reason-required actions that go through the services (audit, notifications, reputation), and an audited "Set role" action on users. Discoveries are verified by weighted community votes (`docs/vote-threshold-spec.md`).
 
 ---
 
@@ -168,7 +164,7 @@ Three places where a page exists but the feature does not.
 - [x] OpenCLIP installed CPU-only in the backend venv (torch 2.15.0+cpu, open_clip 4.2.2, via `uv pip`; the venv has no pip) and **run for the first time**: 512-dim vectors, ~35 s first load then ~0.1 s per image. Sanity check on synthetic pairs: re-encoded copy 0.989 (near-duplicate, as intended), same layout with a different sign 0.533, unrelated logo 0.243
 - [ ] **Switch it on**: add `EMBEDDER_BACKEND=apps.intelligence.embeddings.OpenCLIPEmbedder` to the backend env, restart, then `manage.py embed_missing` to backfill existing images. In Celery eager mode, embedding runs inside the upload request (~0.1 s, plus ~35 s once per server process for the model load)
 - [ ] Calibrate `EMBED_SIMILAR_MIN` (0.80) and `EMBED_NEAR_DUPLICATE` (0.95) on real screenshot pairs (same spot from different angles, re-uploads, different spots)
-- [ ] Pin the CPU wheel for deploys: `requirements-ml.txt` is unpinned, and a plain pip install on Linux pulls the multi-GB CUDA build
+- [x] Pin the CPU wheel for deploys: `requirements-ml.txt` now pins `torch==2.15.0+cpu` and `open_clip_torch==4.2.2` from PyTorch's CPU index
 - [ ] Feed visual matches into entity matching in `images/tasks.py`
 - [ ] Reward point values and reputation thresholds reviewed against real activity
 
@@ -178,26 +174,27 @@ Three places where a page exists but the feature does not.
 
 **Backend infrastructure**
 
-- [ ] Postgres 16 + pgvector, Redis as the cache (throttles use per-process locmem today)
+- [ ] Postgres 16 + pgvector and Redis, provisioned. The code side is done: `DATABASE_URL` and `CACHE_URL` are read from env, and with `DEBUG=false` the server refuses to start on SQLite or without `CACHE_URL` (throttles must be shared by every worker)
 - [ ] Celery worker + beat (beat polls pending attestations; without it a pending tx stays pending forever)
 - [ ] S3 on a real bucket (code ready, never run against one)
 - [ ] SMTP (email goes to the console backend today)
 - [ ] Secret store for `SECRET_KEY`, the Solana issuer key and the RPC URL
 - [ ] First CI run on GitHub (`.github/workflows/ci.yml` has never executed)
-- [ ] `DEBUG=false` production guard satisfied
+- [ ] `DEBUG=false` production guard satisfied: real `SECRET_KEY`, `DATABASE_URL` (Postgres), `CACHE_URL` (Redis), `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` (for Django admin), `NUM_PROXIES`, `FRONTEND_URL`
+- [x] Django admin served in production: `whitenoise` added to `requirements.txt` and switched on when installed (install it in the local venv too: `uv pip install whitenoise`)
 
 **Frontend**
 
 - [ ] Real-browser viewport checks: desktop, tablet, mobile (plan §6.1, §6.6 responsive)
 - [ ] Re-render audit and paginated data loads (plan §6.3)
 - [ ] Functional pass over the whole app (plan §6.7)
-- [ ] Vercel env: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_BASE_URL`, later `SIXTH_SENSE_OPENAPI_URL`
+- [ ] Vercel env set from [`.env.vercel.example`](.env.vercel.example): `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SITE_URL`, optionally `SIXTH_SENSE_OPENAPI_URL`
 - [ ] Backend `ALLOWED_HOSTS` includes the public host
 - [ ] Hand-annotated OpenAPI — the auto schema is too thin for the developer portal to be useful
 
 **Before launch**
 
-- [ ] Rename remaining user-facing "SceneID" strings (emails, wallet sign-in message, Swagger title, analysis prompt, the rewards requirements text "Every reward is reviewed by SceneID staff", the verification email subject and sender "Verify your SceneID email" from "SceneID <no-reply@…>", the `sceneid` attestation issuer)
+- [x] Rename user-facing "SceneID" strings — done 2026-11-18: emails and default sender, wallet sign-in message, API title and docs, analysis prompt, rewards text, the "Identified by … analysis" timeline note. Left on purpose: the on-chain memo prefix `sceneid:1:` and the attestation `issuer`, which go with the next item, plus internal names (Celery app, email-link salt, `sceneid-world-units`)
 - [ ] Decide the on-chain memo prefix (`sceneid:1:`) before any mainnet use — memos are public forever
 - [ ] Commit or drop the uncommitted marketing kit (`scripts/generate-marketing-assets.mjs`, `public/brand/marketing/`, `brand:marketing`)
 - [ ] Update the stale tracker at the top of `SIXTH_SENSE_FRONTEND_PLAN.md`
@@ -213,7 +210,6 @@ These gate real chunks of the work above.
 - [ ] Rotate the Alchemy API key that was shared in a chat
 - [ ] Decide the reward currency and payout mechanism (no money moves today; `distribute` only records a reference)
 - [ ] Licensed map coordinates and reference images
-- [ ] Un-pause Admin (4.12) when ready
 
 ---
 
@@ -223,8 +219,9 @@ These gate real chunks of the work above.
 |---|---|
 | 2026-11-17 | Rebrand SceneID → Sixth Sense; starburst logo final |
 | 2026-11-17 | Six spec-vs-reality decisions settled: memo kept, lowercase enums kept, devnet for dev, PostGIS skipped, S3 yes / presign not yet, Claude vision + brute-force embeddings |
-| 2026-11-18 | gtadb.org (CC BY 4.0) is the map base on the frontend only, self-hosted, labelled an unofficial community layer; the backend declines to import it over leak provenance |
+| 2026-11-18 | gtadb.org (CC BY 4.0) is the map base on the frontend only, self-hosted; the backend declines to import it over leak provenance |
+| 2026-11-18 | Map no longer labelled "unofficial" or "community layer" anywhere; only the CC BY 4.0 credit to gtadb.org remains, as the licence requires |
+| 2026-11-18 | Admin page dropped; moderation in Django admin. Votes are weighted (player 0.5, contributor 1); verified at 5 weight, ≥80% agreement, ≥1 contributor |
 | 2026-11-18 | Map tiles synced from GitHub at build time and served statically; Vercel Blob dropped |
 | 2026-11-18 | Sign-in is Solana wallet only, through the backend; JWTs stay in `ss_access` / `ss_refresh` HTTP-only cookies |
 | 2026-11-18 | Every vote needs a reason, Confirm as well as Dispute; votes are final |
-| — | Admin (4.12) paused by request |

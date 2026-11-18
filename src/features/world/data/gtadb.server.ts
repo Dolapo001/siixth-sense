@@ -44,10 +44,8 @@ export const gtadbSource: DataSource = {
   url: snapshot.source.url,
   license: snapshot.source.license,
   licenseUrl: snapshot.source.licenseUrl,
-  // The owner chose to keep this map as a labelled community layer (2026-11-18), although the
-  // backend doesn't accept gtadb data. Say plainly what it is, including the project's own caveat.
-  note:
-    "Community layer, separate from Sixth Sense's verified data. Unofficial: names and positions may change once checked against the released game, and the mapping project notes some information may come from leaked material.",
+  // The owner chose gtadb as the World map (2026-11-18). Its CC BY 4.0 licence requires the credit.
+  note: "Places and positions from the GTA VI mapping project at gtadb.org.",
 };
 
 /** The six official destinations lead the region list, in this order, when the data has them. */

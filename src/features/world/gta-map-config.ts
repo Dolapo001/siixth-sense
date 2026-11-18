@@ -18,4 +18,4 @@ export const GTA_TILE_ZOOM = { min: GTA_NATIVE_MIN_ZOOM, max: GTA_NATIVE_MAX_ZOO
 export const GTA_MAP_ATTRIBUTION =
   '<a href="https://map.gtadb.org" target="_blank" rel="noopener noreferrer">GTA VI Map Tiles</a> ' +
   '(<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>) — ' +
-  "gtadb.org, base art YANIS v18 by the GTA VI mapping community. Unofficial; re-indexed for this map.";
+  "gtadb.org, base art YANIS v18 by the GTA VI mapping community; re-indexed for this map.";

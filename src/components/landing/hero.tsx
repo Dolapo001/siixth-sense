@@ -3,8 +3,10 @@ import { ArrowRight, ChevronDown, MapPin } from "lucide-react";
 import { BrandReveal } from "@/components/brand/brand-motion";
 import { buttonStyles } from "@/components/ui/button";
 import { demoDetections, landingImages } from "@/features/landing/fixtures";
+import { X_HANDLE, X_URL } from "@/features/landing/socials";
 import { HeroPreview } from "./hero-preview";
 import { SceneImage } from "./scene-image";
+import { ContractAddress, XIcon } from "./socials";
 
 /*
  * Cinematic hero. The starburst reveals first, then the headline (the
@@ -31,7 +33,7 @@ export function Hero() {
       <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-48 bg-linear-to-b from-transparent to-midnight" />
 
       <div className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-5 pt-28 pb-20 md:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pt-32">
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <div className="flex items-center gap-3">
             <BrandReveal size={30} delay={0.2} />
             <p className="sid-rise eyebrow text-accent" style={at(0.4)}>
@@ -70,6 +72,18 @@ export function Hero() {
           <p className="sid-rise meta tracking-[0.2em] text-fg/80" style={at(1.15)}>
             ANALYZE · IDENTIFY · DISCOVER
           </p>
+          <div className="sid-rise flex flex-col gap-3" style={at(1.25)}>
+            <ContractAddress />
+            <a
+              href={X_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 self-start rounded-md text-small text-fg/75 transition-colors hover:text-fg"
+            >
+              <XIcon className="size-4" />
+              Follow {X_HANDLE}
+            </a>
+          </div>
         </div>
 
         <HeroPreview image={landingImages.boulevard} detections={demoDetections} />

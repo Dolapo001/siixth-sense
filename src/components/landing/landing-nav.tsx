@@ -8,6 +8,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useSession } from "@/features/authentication/hooks";
 import { cn } from "@/lib/utilities/cn";
+import { XLink } from "./socials";
 
 /**
  * In-page sections. The landing nav only moves around this page; entering
@@ -103,6 +104,7 @@ export function LandingNav() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <XLink />
           {showSignIn && (
             <Link
               href="/auth/login"
@@ -140,6 +142,7 @@ export function LandingNav() {
               </li>
             ))}
           </ul>
+          <XLink className="self-start border border-border" />
           <div className="flex flex-col gap-2">
             {showSignIn && (
               <Link href="/auth/login" className={buttonStyles({ size: "lg" })} onClick={() => setMenuOpen(false)}>

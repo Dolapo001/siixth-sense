@@ -98,7 +98,7 @@ export type DataSource = {
   url: string;
   license: string;
   licenseUrl: string;
-  /** e.g. "Community-mapped and unofficial until checked against the released game." */
+  /** Shown with the data's credit, e.g. what the source covers. */
   note: string;
 };
 

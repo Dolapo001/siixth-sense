@@ -20,8 +20,9 @@ const apiOrigin = originOf(process.env.NEXT_PUBLIC_API_BASE_URL);
  * Content Security Policy without nonces: nonces would force every page to
  * render per request, which cacheComponents / partial prerendering avoid.
  * - worker-src blob: MapLibre's web worker.
- * - img-src https: screenshots come from the backend's storage (signed S3
- *   URLs in production); tighten this once the bucket host is known.
+ * - img-src https: screenshots come from the backend's storage (signed
+ *   Cloudinary URLs on res.cloudinary.com in production); could be tightened
+ *   to that host.
  * - style-src 'unsafe-inline': Motion and MapLibre set inline styles.
  */
 const contentSecurityPolicy = [

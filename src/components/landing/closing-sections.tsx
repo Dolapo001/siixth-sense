@@ -5,6 +5,7 @@ import { buttonStyles } from "@/components/ui/button";
 import { landingImages } from "@/features/landing/fixtures";
 import { Reveal } from "./reveal";
 import { SceneImage } from "./scene-image";
+import { ContractAddress, XLink } from "./socials";
 import { IllustrationTag, SectionHeading } from "./section-heading";
 
 /** Faint coordinate geometry behind the Proof of Discovery section. */
@@ -170,13 +171,15 @@ export function LandingFooter() {
   return (
     <footer className="border-t border-border bg-midnight">
       <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))] md:px-8">
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           <SixthSenseLogo size={26} />
           <p className="eyebrow text-accent">See beyond the scene.</p>
           <p className="max-w-sm text-small text-muted">
             The visual intelligence layer for exploring the world of GTA VI, built on screenshots and verified by the
             community.
           </p>
+          <XLink className="-ml-2.5" />
+          <ContractAddress className="max-w-sm" />
         </div>
         {footerColumns.map((column) => (
           <nav key={column.title} aria-label={column.title} className="flex flex-col gap-3">

@@ -30,7 +30,9 @@ function useMapPlaces(): WorldMarker[] {
   return useMemo(
     () =>
       (markers ?? [])
-        .filter((m) => m.nameKnown !== false && m.coordinate)
+        // Discoveries are pinned at places and reuse the place's id (so their marker opens it);
+        // they aren't places themselves, and listing them would offer the same id twice.
+        .filter((m) => m.layer !== "discoveries" && m.nameKnown !== false && m.coordinate)
         .sort((a, b) => a.title.localeCompare(b.title)),
     [markers],
   );
@@ -49,6 +51,7 @@ export function uncertaintyOf(job: Pick<AnalysisJob, "detections" | "locationMat
     return "Some identifications are low-confidence guesses.";
   }
   if (job.locationMatches.length === 0) return "The location couldn't be placed.";
+  if (job.locationMatches.every((m) => m.precision === "region")) return "Only the likely area was found, not the exact place.";
   return null;
 }
 

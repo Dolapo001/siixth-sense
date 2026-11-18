@@ -38,6 +38,30 @@ export function LocationMatches({ matches }: { matches: LocationMatch[] }) {
 }
 
 function MatchCard({ match, rank }: { match: LocationMatch; rank: number | null }) {
+  return match.precision === "region" ? <RegionCard match={match} rank={rank} /> : <PlaceCard match={match} rank={rank} />;
+}
+
+/**
+ * A whole area, usually a likely one from the scenery. Regions aren't points on
+ * the World map, so there's no map preview or link, just the name and why.
+ */
+function RegionCard({ match, rank }: { match: LocationMatch; rank: number | null }) {
+  return (
+    <li className="flex flex-col gap-2 rounded-md border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col">
+          {rank && <span className="meta text-muted">Candidate {rank}</span>}
+          <span className="text-body font-semibold">{match.name}</span>
+        </div>
+        <LocationPrecisionBadge precision={match.precision} />
+      </div>
+      {match.basis && <p className="text-small text-muted">{match.basis}</p>}
+      <ConfidenceLabel score={match.confidence} />
+    </li>
+  );
+}
+
+function PlaceCard({ match, rank }: { match: LocationMatch; rank: number | null }) {
   const location = useLocation(match.locationId);
   const place = location.data;
 

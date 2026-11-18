@@ -73,11 +73,11 @@ export function MapPreview({ places, tiles, aspect }: MapPreviewProps) {
           })}
         </ul>
         <p className="meta absolute top-2 right-2 rounded-sm bg-midnight/85 px-1.5 py-0.5 text-[0.6875rem] text-fg/85">
-          Community layer ·{" "}
+          Map:{" "}
           <a href="https://map.gtadb.org" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
             gtadb.org
           </a>{" "}
-          · CC BY 4.0 · unofficial
+          · CC BY 4.0
         </p>
       </div>
 
@@ -119,8 +119,7 @@ export function MapPreview({ places, tiles, aspect }: MapPreviewProps) {
         )}
 
         <p className="text-small text-muted">
-          {places.length} of thousands of places mapped by the GTA VI community. Names and positions are unofficial
-          until they&apos;re checked against the released game.
+          {places.length} of thousands of places across Leonida, from Vice City to the Keys.
         </p>
       </div>
     </div>

@@ -288,6 +288,66 @@ describe("screenshot analysis from the backend", () => {
     expect(requests.find((r) => r.method === "POST")?.body).toEqual({ image: "img1" });
   });
 
+  it("places a screenshot on the map from what it detected, and keeps detection labels", async () => {
+    // Found live 2026-11-18: an analysis that read the "SEVEN SEAS SEAFOOD" sign showed "No location match"
+    // (it predates visible_text), and every detection label came out blank because catalogue_name is "".
+    const entity = (category: string, label: string, evidence: string) => ({
+      public_id: label,
+      category,
+      label,
+      description: "",
+      evidence,
+      confidence: 0.8,
+      band: "medium",
+      bbox: null,
+      catalogue_name: "",
+      related_discoveries: [],
+      related_locations: [],
+    });
+    const place = (locationId: string, title: string, areas: string[]) => ({
+      id: locationId,
+      locationId,
+      title,
+      category: "location",
+      precision: "approximate",
+      coordinate: { x: 1941, y: 589 },
+      regionId: "vice-beach",
+      verification: "awaiting_verification",
+      areas,
+      nameKnown: true,
+    });
+    respond = (url) =>
+      url.includes("/api/world/overview") ?
+        Response.json({
+          bounds: { minX: 0, minY: 0, maxX: 4000, maxY: 4000 },
+          regions: [],
+          markers: [place("L39", "Seven Seas Seafood", ["Shore Dr", "Ocean Beach"]), place("L40", "Boardwalk", [])],
+        })
+      : url.endsWith("/analyses/constraints") ? ok(constraints)
+      : url.endsWith("/analyses/old-run") ?
+        ok({
+          public_id: "old-run",
+          status: "completed",
+          error: "",
+          created_at: "2026-11-18T14:34:00Z",
+          scene_context: { candidate_location: null, location_certainty: "unknown", observations: [] },
+          location_matches: [],
+          entities: [
+            entity("vehicle", "White police cruiser", "White car with blue 'POLICE' lettering"),
+            entity("location", "Seven Seas Seafood restaurant", "Round sign reading 'SEVEN SEAS SEAFOOD' above the door"),
+          ],
+        })
+      : url.includes("/world/markers") ? ok([])
+      : url.includes("/discoveries") ? ok({ count: 0, page: 1, page_size: 50, total_pages: 1, next: null, previous: null, results: [] })
+      : fail("unexpected", 500);
+    const { createApiAnalysisSource } = await import("@/features/image-analysis/data/api-source");
+    const job = await (await createApiAnalysisSource()).getJob("old-run", new AbortController().signal);
+    expect(job.detections.map((d) => d.label)).toEqual(["White police cruiser", "Seven Seas Seafood restaurant"]);
+    expect(job.locationMatches).toEqual([
+      { locationId: "L39", name: "Seven Seas Seafood", precision: "approximate", basis: 'Sign reads "SEVEN SEAS SEAFOOD"' },
+    ]);
+  });
+
   it("reuses a re-uploaded screenshot's analysis that has results, without paying again", async () => {
     stubUpload({ public_id: "img1", latest_analysis: "done" });
     respond = (url) =>

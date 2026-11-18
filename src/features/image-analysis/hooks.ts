@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAnalysisDataSource, UploadCancelledError, type AnalysisDataSource } from "./data/source";
+import { ImageTooLargeError } from "./shrink-image";
 import { analysisReducer, initialAnalysisState } from "./state";
 import { isTerminal } from "./types";
 import { validateScreenshot } from "./validation";
@@ -70,6 +71,7 @@ export function useScreenshotAnalysis(source: AnalysisDataSource) {
       dispatch({ type: "upload-success", jobId });
     } catch (error) {
       if (error instanceof UploadCancelledError) dispatch({ type: "upload-cancel" });
+      else if (error instanceof ImageTooLargeError) dispatch({ type: "upload-error", error: error.message });
       else
         dispatch({ type: "upload-error", error: "The upload didn't complete. Check your connection and try again." });
     } finally {

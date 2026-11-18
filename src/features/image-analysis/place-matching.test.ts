@@ -35,6 +35,15 @@ describe("placesFromAnalysis", () => {
     expect(placesFromAnalysis(markers, { visibleText: ["SPORTS BAR"] })).toEqual([]);
   });
 
+  it("matches places, never the titles of discoveries pinned at them", () => {
+    const withDiscovery = [
+      ...markers,
+      place("L40", "Harness verification test", { id: "discovery:d1", layer: "discoveries" }),
+    ];
+    expect(placesFromAnalysis(withDiscovery, { visibleText: ["HARNESS VERIFICATION TEST"] })).toEqual([]);
+    expect(placesFromAnalysis(withDiscovery, { visibleText: ["BOARDWALK"] }).map((m) => m.name)).toEqual(["Boardwalk"]);
+  });
+
   it("never guesses: no exact name, no match", () => {
     expect(placesFromAnalysis(markers, { visibleText: ["SEVEN SEAS"] })).toEqual([]);
     expect(placesFromAnalysis(markers, {})).toEqual([]);
@@ -50,5 +59,19 @@ describe("placesFromAnalysis", () => {
       ["L39", 'Sign reads "Seven Seas Seafood"'],
       ["L40", "Named by the analysis"],
     ]);
+  });
+
+  it("uses what the analysis detected: sign text quoted in evidence, and the names of detected places", () => {
+    const detection = (category: "location" | "vehicle", label: string, evidence: string[] = []) => ({ category, label, evidence });
+    expect(
+      placesFromAnalysis(markers, { detections: [detection("vehicle", "Police car", ["Round sign reading 'SEVEN SEAS SEAFOOD'"])] }),
+    ).toEqual([
+      { locationId: "L39", name: "Seven Seas Seafood", precision: "approximate", basis: 'Sign reads "SEVEN SEAS SEAFOOD"' },
+    ]);
+    expect(placesFromAnalysis(markers, { detections: [detection("location", "Seven Seas Seafood restaurant")] })).toEqual([
+      { locationId: "L39", name: "Seven Seas Seafood", precision: "approximate", basis: 'Detected "Seven Seas Seafood restaurant"' },
+    ]);
+    // A vehicle called "Boardwalk" is a coincidence, not a place.
+    expect(placesFromAnalysis(markers, { detections: [detection("vehicle", "Boardwalk")] })).toEqual([]);
   });
 });

@@ -75,6 +75,8 @@ describe("uncertaintyOf", () => {
     expect(uncertaintyOf(job([detection(0.3)]))).toMatch(/low-confidence/);
     expect(uncertaintyOf(job([detection(0.9)], false))).toMatch(/location/);
     expect(uncertaintyOf(job([detection(0.9)]))).toBeNull();
+    const areaOnly = { ...job([detection(0.9)], false), locationMatches: [{ locationId: "region:ob", name: "Ocean Beach", precision: "region" as const }] };
+    expect(uncertaintyOf(areaOnly)).toMatch(/likely area/);
   });
 });
 
@@ -143,6 +145,21 @@ describe("ShareWithCommunity", () => {
     expect(within(where).getByRole("group", { name: "Suggested by the analysis" })).toHaveTextContent("Vice Regal");
     expect(within(where).getByRole("group", { name: "Places on the World map" })).not.toHaveTextContent("Vice Regal");
     expect(where).toHaveValue("L1");
+  });
+
+  it("lists places, not the discoveries pinned at them", async () => {
+    // A discovery tagged place:L1 is a marker reusing L1 (so it opens the place); it isn't a place to pick.
+    state.markers = [
+      mapPlace("L1", "Vice Regal", ["Washington Beach"]),
+      mapPlace("L1", "Blue test frame", ["Washington Beach"], { id: "discovery:d1", layer: "discoveries" }),
+    ];
+    renderShare(job([detection(0.9)], false));
+    await userEvent.click(screen.getByRole("button", { name: "Share with the community" }));
+    const where = within(screen.getByRole("dialog")).getByLabelText(/Where is it/);
+    expect(within(where).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Not sure",
+      "Vice Regal — Washington Beach",
+    ]);
   });
 
   it("asks signed-out players to sign in", () => {

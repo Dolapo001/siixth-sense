@@ -348,7 +348,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
           <Badge tone="signal" className="bg-midnight/90 backdrop-blur">
             {data.kind === "sample"
               ? "Sample data · placeholder grid, not the game map"
-              : "Community layer · gtadb.org · CC BY 4.0 · unofficial"}
+              : "Map: gtadb.org · CC BY 4.0"}
           </Badge>
         </div>
       )}

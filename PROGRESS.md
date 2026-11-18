@@ -10,7 +10,7 @@ Update this file at the end of every work session. The detailed phase checklist 
 |---|---|
 | `pnpm typecheck` | ✅ passes |
 | `pnpm lint` | ✅ passes |
-| `pnpm test` | ✅ 38 files, 345 tests passing |
+| `pnpm test` | ✅ 41 files, 383 tests passing |
 | Backend tests (`sceneid-backend`) | ✅ 280 passing |
 | `node scripts/e2e-journey.mjs --verify` (live backend) | ✅ 46 checks passing |
 
@@ -40,8 +40,8 @@ Every feature reads through a typed data-source interface (`src/features/*/data/
 | Web3: config, wallet link/unlink, transactions, attestations, rewards | ✅ Adapter built. Unlink has a backend lockout risk (see open issues) |
 | World map | 🟡 Geography comes from the pinned gtadb snapshot; backend discoveries are overlaid as a "Discoveries" layer and linked to gtadb places with a `place:<id>` tag |
 | Developer portal | 🟡 Renders from `SIXTH_SENSE_OPENAPI_URL`; the backend's schema is too thin to be useful yet |
-| Notifications | ❌ **Not built.** `/notifications` is still the Phase 3 `FeaturePlaceholder`: no data source, no adapter, no unread badge. The backend's `notifications/` API is complete and unused |
-| Settings | 🟡 Profile + account panel only. `me/settings/` is never called; no privacy flags, no account deletion |
+| Notifications | ✅ Built 2026-11-18 (`src/features/notifications`): list, unread filter, mark read / all read, links to each notification's page, mute by group, unread badge on the rail and mobile top bar. Verified in the browser against the live backend |
+| Settings | ✅ Built 2026-11-18 (`src/features/settings`): privacy, add/verify email (new `/verify-email` page), account deletion. Verified in the browser against the live backend |
 | End-to-end validation (plan §5.3) | ❌ Not done: no recorded run of sign-in → upload → analysis → publish → verify against a running backend |
 
 ## First live backend run (2026-11-18)

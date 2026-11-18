@@ -1,8 +1,16 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// The badge reads the unread count through this hook; drive it directly.
+let unread: number | null = null;
+vi.mock("@/features/notifications/hooks", () => ({ useUnreadCount: () => unread }));
+beforeEach(() => {
+  unread = null;
+});
+
 import { AppRailLinks } from "./app-rail";
-import { MobileNavLinks } from "./mobile-nav";
+import { MobileNavLinks, MobileTopBar } from "./mobile-nav";
 import { isActive, mobileBarNav, mobileMoreNav, primaryNav, secondaryNav, utilityNav } from "./nav-items";
 
 describe("isActive", () => {
@@ -47,6 +55,31 @@ describe("AppRailLinks", () => {
   it("marks nothing active in the fallback", () => {
     render(<AppRailLinks pathname={null} />);
     expect(screen.queryByRole("link", { current: "page" })).not.toBeInTheDocument();
+  });
+
+  it("shows no badge when there's nothing unread (or no one signed in)", () => {
+    render(<AppRailLinks pathname={null} />);
+    expect(screen.getByRole("link", { name: "Notifications" })).toBeInTheDocument();
+  });
+
+  it("puts the unread count on the bell, in its accessible name too", () => {
+    unread = 3;
+    const { unmount } = render(<AppRailLinks pathname={null} />);
+    const link = screen.getByRole("link", { name: "Notifications, 3 unread" });
+    expect(within(link).getByText("3")).toBeInTheDocument();
+    unmount();
+
+    unread = 12;
+    render(<AppRailLinks pathname={null} />);
+    expect(within(screen.getByRole("link", { name: "Notifications, 12 unread" })).getByText("9+")).toBeInTheDocument();
+  });
+});
+
+describe("MobileTopBar", () => {
+  it("names the bell link, with the unread count when there is one", () => {
+    unread = 2;
+    render(<MobileTopBar />);
+    expect(screen.getByRole("link", { name: "Notifications, 2 unread" })).toHaveAttribute("href", "/notifications");
   });
 });
 

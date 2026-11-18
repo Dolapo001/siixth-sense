@@ -47,6 +47,7 @@ const detail: DiscoveryDetail = {
   evidence: [],
   suggestions: [],
   viewer: null,
+  verificationProgress: null,
   verificationHistory: [{ at: "2026-11-02T00:00:00Z", status: "ai_suggested", actor: { kind: "ai" } }],
   comments: [],
   related: [],

@@ -66,6 +66,7 @@ function MatchCard({ match, rank }: { match: LocationMatch; rank: number | null 
           </div>
           <LocationPrecisionBadge precision={match.precision} />
         </div>
+        {match.basis && <p className="text-small text-muted">{match.basis}</p>}
         <ConfidenceLabel score={match.confidence} />
         {location.isSuccess && !place && (
           <p className="text-meta text-muted">This place isn&apos;t on the World map yet.</p>

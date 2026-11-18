@@ -2,10 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { VerificationProgress } from "@/components/community/verification-progress";
 import { VotePanel } from "@/components/community/vote-panel";
 import { __sample, createMockDiscoverySource } from "@/features/discoveries/data/mock-source";
 import { ActionRefusedError } from "@/features/discoveries/data/source";
-import type { ViewerPermissions } from "@/features/discoveries/types";
+import type { VerificationProgress as VerificationProgressData, ViewerPermissions } from "@/features/discoveries/types";
 import { commentSchema, evidenceSchema, reportSchema, suggestionSchema, voteReasonSchema } from "./schemas";
 
 // These tests run against the sample source, which is opt-in outside `next dev`.
@@ -275,5 +276,45 @@ describe("CommunityHub", () => {
     withQuery(<CommunityHub />);
     expect(await screen.findByText(/No person has checked it yet/)).toBeInTheDocument();
     expect(screen.getByText(/strongest status/)).toBeInTheDocument();
+  });
+});
+
+describe("VerificationProgress", () => {
+  const progress = (p: Partial<VerificationProgressData> = {}): VerificationProgressData => ({
+    confirmWeight: 3.5,
+    disputeWeight: 0,
+    required: 5,
+    minAgreement: 0.8,
+    trustedVotes: 0,
+    trustedRequired: 1,
+    ...p,
+  });
+
+  it("shows weighted confirmations against the threshold", () => {
+    render(<VerificationProgress progress={progress()} />);
+    expect(screen.getByText("3.5 of 5")).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Confirmations toward verification" })).toHaveAttribute("aria-valuenow", "3.5");
+    expect(screen.getByText("At least one Verified Contributor confirms").parentElement).toHaveTextContent("(not met yet)");
+    // Agreement only matters once someone disputes.
+    expect(screen.queryByText(/agree/)).not.toBeInTheDocument();
+  });
+
+  it("marks met requirements and shows agreement once there are disputes", () => {
+    render(<VerificationProgress progress={progress({ confirmWeight: 6, disputeWeight: 2, trustedVotes: 2 })} />);
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "5"); // capped at the threshold
+    expect(screen.getByText("At least one Verified Contributor confirms").parentElement).toHaveTextContent("(met)");
+    expect(screen.getByText("75% agree, 80% needed").parentElement).toHaveTextContent("(not met yet)");
+  });
+
+  it("leaves out the contributor rule when the server doesn't require one", () => {
+    render(<VerificationProgress progress={progress({ trustedRequired: 0 })} />);
+    expect(screen.queryByText(/Verified Contributor/)).not.toBeInTheDocument();
+  });
+
+  it("is shown on open sample discoveries, and gone once voting closes", async () => {
+    const source = createMockDiscoverySource();
+    const open = await source.getDiscovery(byStatus("awaiting_verification").id);
+    expect(open!.verificationProgress).toMatchObject({ required: 10, confirmWeight: open!.engagement.confirmations });
+    expect((await source.getDiscovery(byStatus("verified").id))!.verificationProgress).toBeNull();
   });
 });

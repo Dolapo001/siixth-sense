@@ -67,6 +67,15 @@ type BackendDetail = BackendDiscovery & {
     vote: { allowed: boolean; reason?: string; current: "confirm" | "dispute" | null };
     followingContributor: boolean | null;
   } | null;
+  /** Absent on backends from before weighted votes. */
+  verification_progress?: {
+    confirm_weight: number;
+    dispute_weight: number;
+    required: number;
+    min_agreement: number;
+    trusted_votes: number;
+    trusted_required: number;
+  } | null;
 };
 
 /*
@@ -178,6 +187,16 @@ function toDetail(d: BackendDetail): DiscoveryDetail {
       // null means it's the viewer's own discovery; a hidden contributor can't be followed by name.
       followingContributor: named && d.viewer.followingContributor !== null ? d.viewer.followingContributor : undefined,
     },
+    verificationProgress: d.verification_progress
+      ? {
+          confirmWeight: d.verification_progress.confirm_weight,
+          disputeWeight: d.verification_progress.dispute_weight,
+          required: d.verification_progress.required,
+          minAgreement: d.verification_progress.min_agreement,
+          trustedVotes: d.verification_progress.trusted_votes,
+          trustedRequired: d.verification_progress.trusted_required,
+        }
+      : null,
   };
 }
 

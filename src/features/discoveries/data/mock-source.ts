@@ -22,6 +22,7 @@ import type {
   ReportReason,
   ReportTarget,
   VerificationEvent,
+  VerificationProgress,
   ViewerPermissions,
   Vote,
 } from "../types";
@@ -245,6 +246,20 @@ function permissionsFor(item: DiscoveryListItem, state: CommunityState, viewer: 
   };
 }
 
+/** Progress toward the sample rule above: 10 confirmations, every vote weighing 1, any dispute ends it. */
+function sampleProgressFor(item: DiscoveryListItem, state: CommunityState): VerificationProgress | null {
+  if (item.verification !== "ai_suggested" && item.verification !== "awaiting_verification") return null;
+  const disputes = [...state.votes.values()].filter((v) => v.vote === "dispute").length;
+  return {
+    confirmWeight: item.engagement.confirmations,
+    disputeWeight: disputes,
+    required: 10,
+    minAgreement: 1,
+    trustedVotes: 0,
+    trustedRequired: 0,
+  };
+}
+
 /** Only some verified sample discoveries carry a sample attestation, to show both states. */
 export function sampleAttestationFor(item: DiscoveryListItem, history: VerificationEvent[]) {
   const h = hash(item.id);
@@ -298,6 +313,7 @@ function detailFor(item: DiscoveryListItem, viewer: Contributor | null): Discove
       .slice(h % 10, (h % 10) + 3),
     attestation: sampleAttestationFor(item, state.history),
     viewer: permissionsFor(item, state, viewer),
+    verificationProgress: sampleProgressFor(item, state),
   };
 }
 

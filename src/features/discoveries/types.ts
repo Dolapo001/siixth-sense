@@ -73,6 +73,23 @@ export type ViewerPermissions = {
   followingContributor?: boolean;
 };
 
+/**
+ * How close an open discovery is to being verified. Weights and thresholds are
+ * the server's; the UI only displays them. Null once voting has closed.
+ */
+export type VerificationProgress = {
+  /** Weighted confirmations that count (a Verified Contributor's vote weighs more than a new player's). */
+  confirmWeight: number;
+  disputeWeight: number;
+  /** Confirmation weight needed to verify. */
+  required: number;
+  /** Share of all counted weight (0–1) that must agree. */
+  minAgreement: number;
+  /** Verified Contributors among the confirmations, and how many are needed. */
+  trustedVotes: number;
+  trustedRequired: number;
+};
+
 export type DiscoveryDetail = DiscoveryListItem & {
   description: string;
   detections: {
@@ -91,6 +108,7 @@ export type DiscoveryDetail = DiscoveryListItem & {
   /** On-chain record of Sixth Sense's process, if one exists. Not proof the discovery is correct. */
   attestation: { network: string; signature: string; explorerUrl: string; recordedAt: string } | null;
   viewer: ViewerPermissions | null;
+  verificationProgress: VerificationProgress | null;
 };
 
 export const reportReasons = [

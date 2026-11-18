@@ -167,6 +167,18 @@ describe("wallet sign-in through the backend", () => {
     expect(jar.size).toBe(0);
   });
 
+  it("counts only a verified email as a way in besides the wallet, like the backend's unlink guard", async () => {
+    const { session } = await routes();
+    jar.set(ACCESS_COOKIE, jwt("live", 1800));
+    const walletOnly = async (account: object) => {
+      handler = () => envelope({ ...me, ...account });
+      return (await (await session()).json()).walletOnly;
+    };
+    expect(await walletOnly({ email: null })).toBe(true);
+    expect(await walletOnly({ email: "a@b.io", email_verified: false })).toBe(true); // can't reach password reset
+    expect(await walletOnly({ email: "a@b.io", email_verified: true })).toBe(false);
+  });
+
   it("passes the player's address to every backend call the throttles count", async () => {
     // Without it every player shares the backend's per-IP throttle buckets,
     // and a throttled token refresh signs the player out.
@@ -227,10 +239,25 @@ describe("backend proxy", () => {
   });
 
   it("never hands out tokens: the token-issuing auth routes aren't reachable", async () => {
-    for (const path of [["auth", "login"], ["auth", "refresh"], ["auth", "wallet", "login"], ["auth", ".."]]) {
+    for (const path of [
+      ["auth", "login"],
+      ["auth", "refresh"],
+      ["auth", "logout"],
+      ["auth", "wallet", "login"],
+      ["auth", "verify-email", "x"],
+      ["auth", ".."],
+    ]) {
       expect((await proxy(path, { method: "POST", headers: { origin: "http://localhost:3000" } })).status).toBe(404);
     }
     expect(calls).toHaveLength(0);
+  });
+
+  it("lets through the email routes, which don't touch tokens", async () => {
+    handler = () => envelope({ detail: "ok" });
+    for (const path of [["auth", "verify-email"], ["auth", "resend-verification"]]) {
+      expect((await proxy(path, { method: "POST", body: "{}", headers: { origin: "http://localhost:3000" } })).status).toBe(200);
+    }
+    expect(calls.map((c) => c.path.split("?")[0])).toEqual(["/auth/verify-email/", "/auth/resend-verification/"]);
   });
 
   it("refuses cross-site writes", async () => {

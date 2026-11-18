@@ -127,6 +127,43 @@ describe("discoveries from the backend", () => {
     expect(detail.viewer?.vote.reason).toBe("Only Verified Contributors can vote.");
   });
 
+  it("maps verification progress, and treats an older backend without it as none", async () => {
+    const base = {
+      ...discovery,
+      contributor_info: null,
+      detections: [],
+      evidence_items: [],
+      suggestions: [],
+      verification_history: [],
+      comments: [],
+      related: [],
+      attestation: null,
+      viewer: null,
+    };
+    respond = () =>
+      ok({
+        ...base,
+        verification_progress: {
+          confirm_weight: 1.5,
+          dispute_weight: 0.5,
+          required: 5,
+          min_agreement: 0.8,
+          trusted_votes: 1,
+          trusted_required: 1,
+        },
+      });
+    expect((await createApiDiscoverySource().getDiscovery("d1"))!.verificationProgress).toEqual({
+      confirmWeight: 1.5,
+      disputeWeight: 0.5,
+      required: 5,
+      minAgreement: 0.8,
+      trustedVotes: 1,
+      trustedRequired: 1,
+    });
+    respond = () => ok(base);
+    expect((await createApiDiscoverySource().getDiscovery("d1"))!.verificationProgress).toBeNull();
+  });
+
   it("returns null for a discovery that doesn't exist (or is private)", async () => {
     respond = () => fail("Not found.", 404);
     expect(await createApiDiscoverySource().getDiscovery("nope")).toBeNull();

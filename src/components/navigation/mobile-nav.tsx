@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Menu } from "lucide-react";
 import { SixthSenseLogo } from "@/components/brand/logo";
 import { Dialog } from "@/components/ui/dialog";
+import { UnreadBadge, UnreadLabel } from "@/features/notifications/unread-badge";
 import { cn } from "@/lib/utilities/cn";
 import { isActive, mobileBarNav, mobileMoreNav } from "./nav-items";
 
@@ -16,12 +17,14 @@ export function MobileTopBar() {
       <Link href="/" aria-label="Sixth Sense home" className="rounded-md">
         <SixthSenseLogo size={24} />
       </Link>
-      <Link
-        href="/notifications"
-        aria-label="Notifications"
-        className="flex size-10 items-center justify-center rounded-md text-muted hover:text-fg"
-      >
-        <Bell aria-hidden className="size-5" />
+      <Link href="/notifications" className="flex size-10 items-center justify-center rounded-md text-muted hover:text-fg">
+        {/* Visible-text-free link: named by the sr-only text (plus the unread count, when there is one). */}
+        <span className="relative">
+          <Bell aria-hidden className="size-5" />
+          <UnreadBadge />
+        </span>
+        <span className="sr-only">Notifications</span>
+        <UnreadLabel />
       </Link>
     </header>
   );

@@ -4,7 +4,7 @@ import { publicPagesIndexable, publicPaths, worldPagesIndexable } from "@/lib/se
 import { siteUrl } from "@/lib/site-url";
 
 /**
- * The landing page, developer docs, the World Explorer and every place on the
+ * The landing page, the World Explorer and every place on the
  * GTA VI map; other public pages once the backend serves their content.
  * Discovery and contributor pages are added once the backend can list them.
  */
@@ -12,7 +12,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const site = siteUrl();
   const paths = [
     "/",
-    "/developers",
     ...(worldPagesIndexable ? ["/world"] : []),
     ...(publicPagesIndexable ? publicPaths : []),
   ];

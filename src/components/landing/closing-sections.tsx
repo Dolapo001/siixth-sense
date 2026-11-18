@@ -162,7 +162,6 @@ const footerColumns = [
     links: [
       { label: "How it works", href: "/#how-it-works" },
       { label: "Proof of Discovery", href: "/web3/proof" },
-      { label: "Developer documentation", href: "/developers" },
     ],
   },
 ];

@@ -12,11 +12,11 @@ Tick a box only when the item is done **and verified**. Items marked 🔒 are bl
 
 | | Frontend | Backend |
 |---|---|---|
-| Tests | ✅ 345 passing / 38 files | ✅ 280 passing |
+| Tests | ✅ 383 passing / 41 files | ✅ 323 passing |
 | Typecheck / lint | ✅ / ✅ | — |
 | Built features | 21 routes, design system, shell, 5 API adapters | Full API: auth, analysis, discoveries, community, reputation, web3, rewards, dev portal |
 | Proven end to end | ✅ sign-in → analysis → publish → community → verified → devnet proof (46 checks) | 🟡 real Claude analysis verified; not yet on a real GTA VI screenshot |
-| Real data loaded | gtadb community map only | ❌ 0 regions, 0 locations, 0 entities |
+| Real data loaded | gtadb community map only | ✅ official names: 13 regions, 20 entities (no coordinates) |
 
 ---
 
@@ -29,7 +29,7 @@ Tick a box only when the item is done **and verified**. Items marked 🔒 are bl
   - [x] 4.1 World Explorer · 4.2 Screenshot Analysis · 4.3 Discovery Feed · 4.4 Discovery Detail
   - [x] 4.5 Community & Verification · 4.6 Profiles · 4.7 Leaderboard · 4.8 Web3 Identity
   - [x] 4.9 Proof of Discovery · 4.10 Rewards · 4.11 Developer Portal · 4.13 Landing
-  - [ ] 4.12 Admin — **paused by request**. `/admin` is a `PermissionDeniedState` stub. Resumes in Phase C.
+  - [x] 4.12 Admin — **dropped (2026-11-18)**. The `/admin` route was removed. Moderation (reports, overrides) uses the backend's Django admin; discoveries are verified by community vote thresholds set on the backend.
 - [x] **Phase 5.1 API architecture** — client, envelope handling, typed sources, proxy, TanStack Query.
 - [x] **Phase 5.2 Missing endpoints** — documented, mocks isolated and labelled, off in production builds.
 
@@ -130,18 +130,23 @@ Frontend interim, until the unlink guard lands:
 
 Three places where a page exists but the feature does not.
 
-**Notifications** — the backend API is complete and entirely unused. `/notifications` is still the Phase 3 `FeaturePlaceholder`: no data source, no adapter, no unread badge.
+**Notifications** — ✅ done 2026-11-18, verified in the browser against the live backend (desktop and mobile).
 
-- [ ] `src/features/notifications/data/` — `source.ts` + `mock-source.ts` + `api-source.ts`
-- [ ] List, pagination, mark-read (single and by `ids`)
-- [ ] Unread count + badge on the nav item and mobile top bar
-- [ ] Per-kind mute (`PUT notifications/preferences`)
+- [x] `src/features/notifications/data/` — `source.ts` + `mock-source.ts` (mirrors the backend, labelled sample) + `api-source.ts`
+- [x] List with All / Unread, pagination, mark one read, mark all read. The adapter never sends an empty mark-read body, which the backend reads as "mark everything read"
+- [x] Each notification links to its page: discovery (comments jump to `#comment-<id>`, now anchored on the discovery page), profile, rewards, wallet, Analyze. Moderator warnings show the moderator's note
+- [x] Unread badge on the rail bell and the mobile top bar; polls every 60s and on focus; in the link's accessible name ("Notifications, 4 unread"); rendered only after hydration
+- [x] Mute by group (`PUT notifications/preferences`), keeping kinds the screen doesn't know about. Moderation (warnings, report outcomes) is never offered for muting
+- [ ] Backend: `notify()` honours mutes for *every* kind, so the API would accept muting moderator warnings. Exempt `warning` (and probably `report_*`) on the backend
+- [ ] "Open Analyze" can't open the specific analysis yet: the Analyze page has no job deep link (`/analyze?job=…`)
 
-**Settings** — `me/settings/` is never called anywhere in the frontend. The page is profile + account panel only.
+**Settings** — ✅ done 2026-11-18, verified in the browser against the live backend, including a real deletion of a throwaway test account.
 
-- [ ] Wire `GET`/`PATCH me/settings/`
-- [ ] Privacy flags (public profile, `attribute_discoveries_publicly`, wallet visibility)
-- [ ] Account deletion (backend anonymises and revokes everything)
+- [x] Privacy: public profile, show wallet, show activity, credit me on my discoveries (`PATCH me/settings/`, only the flag that changed)
+- [x] Email: add or change it, resend the verification link. **It was impossible to verify an email before:** the emailed link pointed at a `/verify-email` page that didn't exist, and the proxy blocked the verify and resend routes. Both fixed: new `/verify-email` page, and the proxy now allows `auth/verify-email` and `auth/resend-verification` (neither issues tokens; everything else under `auth/` is still refused)
+- [x] `walletOnly` now matches the backend's unlink guard: only a **verified** email counts as another way in, so adding an unverified email no longer brings back an "Unlink wallet" the backend would refuse. `/web3` links straight to Settings to add one
+- [x] Delete account: type DELETE (plus the password, for accounts that have one), with the consequences spelled out first, including that signing in with the same wallet afterwards starts a new, empty account. Signs out and returns home
+- [x] **Hydration fix across the app:** `useSession()` now reads as pending until the calling component has hydrated. The rail fetching the session early (for the unread badge) made later boundaries (Settings' account panel) hydrate with a session the server never rendered. Regression test renders server HTML, hydrates with a cached session and asserts no hydration error
 
 **Admin (4.12)** — un-pause when the owner says so. `admin/reports/*` already exists on the backend.
 
@@ -153,14 +158,17 @@ Three places where a page exists but the feature does not.
 
 ## Phase D — Real data and real AI
 
-🔒 Mostly gated on the approvals at the bottom of this file. Until the catalogue is loaded, search, regions and analysis grounding return **nothing**.
+**Started 2026-11-18.** Everything that doesn't need real GTA VI screenshots is done; the rest waits for the game (out 2026-11-19).
 
-- [ ] 🔒 Approve the official-names data source, then `approve_source … --rights-confirmed` and `import_official_vi --apply` (13 regions + 20 entities from rockstargames.com/VI)
-- [ ] Run analysis against the real Claude API on a real GTA VI screenshot
-- [ ] Tune `SYSTEM_PROMPT`, check bounding-box quality, confirm the vision model id
-- [ ] Start an evaluation set and calibrate the confidence bands (0.85 / 0.55 are placeholders)
-- [ ] Install `requirements-ml.txt` on the worker and run the real OpenCLIP model (`OpenCLIPEmbedder` has never executed)
-- [ ] Calibrate `EMBED_SIMILAR_MIN` (0.80) and `EMBED_NEAR_DUPLICATE` (0.95) — both uncalibrated guesses
+- [x] Official-names source approved by the owner (`--rights-confirmed`, 2026-11-18) and imported: 13 regions + 20 entities. `regions/` returns 13 (also through the proxy), search finds them. Note the source is flagged **commercial use not allowed, AI training not allowed**
+- [x] Grounding checked with real Claude calls on two synthetic images (no Rockstar material): a "Welcome to Vice City" sign → `candidate_location: Vice City`, certainty "likely", matched to the Vice City region at region precision; an "Ocean Drive Motel" sign → **no location**, not stretched to the catalogue's "Ocean Beach"
+- [x] Vision model confirmed: `claude-sonnet-5-5` works once `tool_choice` is `auto` (fixed in Phase B)
+- [x] Evaluation harness: `manage.py eval_analysis <folder>` (backend), with label format and how-to in `backend/data/eval/README.md`. Per-band accuracy against the 85% / 55% targets, catalogue precision and recall, invented names, location outcomes, suggested thresholds once there are 30+ detections. Spends nothing without `--yes`; caches raw output by image, model and prompt
+- [ ] **Build the eval set from real screenshots** (50+ labelled, kept outside the repo), run it, then calibrate `CONFIDENCE_HIGH` / `CONFIDENCE_MEDIUM` and tune `SYSTEM_PROMPT` and bounding boxes from the report
+- [x] OpenCLIP installed CPU-only in the backend venv (torch 2.15.0+cpu, open_clip 4.2.2, via `uv pip`; the venv has no pip) and **run for the first time**: 512-dim vectors, ~35 s first load then ~0.1 s per image. Sanity check on synthetic pairs: re-encoded copy 0.989 (near-duplicate, as intended), same layout with a different sign 0.533, unrelated logo 0.243
+- [ ] **Switch it on**: add `EMBEDDER_BACKEND=apps.intelligence.embeddings.OpenCLIPEmbedder` to the backend env, restart, then `manage.py embed_missing` to backfill existing images. In Celery eager mode, embedding runs inside the upload request (~0.1 s, plus ~35 s once per server process for the model load)
+- [ ] Calibrate `EMBED_SIMILAR_MIN` (0.80) and `EMBED_NEAR_DUPLICATE` (0.95) on real screenshot pairs (same spot from different angles, re-uploads, different spots)
+- [ ] Pin the CPU wheel for deploys: `requirements-ml.txt` is unpinned, and a plain pip install on Linux pulls the multi-GB CUDA build
 - [ ] Feed visual matches into entity matching in `images/tasks.py`
 - [ ] Reward point values and reputation thresholds reviewed against real activity
 
@@ -189,7 +197,7 @@ Three places where a page exists but the feature does not.
 
 **Before launch**
 
-- [ ] Rename remaining user-facing "SceneID" strings (emails, wallet sign-in message, Swagger title, analysis prompt)
+- [ ] Rename remaining user-facing "SceneID" strings (emails, wallet sign-in message, Swagger title, analysis prompt, the rewards requirements text "Every reward is reviewed by SceneID staff", the verification email subject and sender "Verify your SceneID email" from "SceneID <no-reply@…>", the `sceneid` attestation issuer)
 - [ ] Decide the on-chain memo prefix (`sceneid:1:`) before any mainnet use — memos are public forever
 - [ ] Commit or drop the uncommitted marketing kit (`scripts/generate-marketing-assets.mjs`, `public/brand/marketing/`, `brand:marketing`)
 - [ ] Update the stale tracker at the top of `SIXTH_SENSE_FRONTEND_PLAN.md`

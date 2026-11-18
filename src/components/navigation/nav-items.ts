@@ -1,6 +1,5 @@
 import {
   Bell,
-  Code,
   Compass,
   Gift,
   Map as MapIcon,
@@ -17,6 +16,8 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Show the unread notifications count on this item's icon. */
+  showsUnread?: boolean;
 };
 
 /** Primary product areas, in order of importance. */
@@ -32,12 +33,11 @@ export const primaryNav: NavItem[] = [
 /** Secondary areas, kept out of the main group so it doesn't get crowded. */
 export const secondaryNav: NavItem[] = [
   { label: "Rewards", href: "/rewards", icon: Gift },
-  { label: "Web3 Identity", href: "/web3", icon: Wallet },
-  { label: "Developers", href: "/developers", icon: Code },
+  { label: "Wallet", href: "/web3", icon: Wallet },
 ];
 
 export const utilityNav: NavItem[] = [
-  { label: "Notifications", href: "/notifications", icon: Bell },
+  { label: "Notifications", href: "/notifications", icon: Bell, showsUnread: true },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 

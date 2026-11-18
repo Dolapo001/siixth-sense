@@ -6,6 +6,7 @@ import { ExternalLink, Flag, Lightbulb, Plus, UserCheck, UserPlus } from "lucide
 import { ActionError, SignInPrompt } from "@/components/community/action-bits";
 import { CommentForm } from "@/components/community/comment-form";
 import { AddEvidenceDialog, ReportDialog, SuggestIdentificationDialog } from "@/components/community/community-dialogs";
+import { VerificationProgress } from "@/components/community/verification-progress";
 import { VotePanel } from "@/components/community/vote-panel";
 import { formatDate } from "@/components/discoveries/discovery-items";
 import { Button } from "@/components/ui/button";
@@ -43,12 +44,15 @@ function AuthorLink({ username, displayName, avatarId }: Contributor) {
 
 export function VerifyPanel({ discovery, actions }: SectionProps) {
   return (
-    <VotePanel
-      viewer={discovery.viewer}
-      onVote={(vote, reason) => actions.vote.mutateAsync({ vote, reason })}
-      pending={actions.vote.isPending}
-      error={errorOf(actions.vote)}
-    />
+    <div className="flex flex-col gap-4">
+      {discovery.verificationProgress && <VerificationProgress progress={discovery.verificationProgress} />}
+      <VotePanel
+        viewer={discovery.viewer}
+        onVote={(vote, reason) => actions.vote.mutateAsync({ vote, reason })}
+        pending={actions.vote.isPending}
+        error={errorOf(actions.vote)}
+      />
+    </div>
   );
 }
 
@@ -199,7 +203,12 @@ export function DiscussionSection({ discovery, actions }: SectionProps) {
       ) : (
         <ul className="flex flex-col gap-4">
           {discovery.comments.map((comment) => (
-            <li key={comment.id} className="group flex flex-col gap-1 border-l border-border pl-4">
+            <li
+              key={comment.id}
+              // Target of "View comment" links from notifications.
+              id={`comment-${comment.id}`}
+              className="group flex scroll-mt-24 flex-col gap-1 border-l border-border pl-4 target:border-accent"
+            >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-meta text-muted">
                   <AuthorLink {...comment.author} /> · <time dateTime={comment.at}>{formatDate(comment.at)}</time>

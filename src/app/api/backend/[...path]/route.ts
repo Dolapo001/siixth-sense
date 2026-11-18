@@ -18,10 +18,12 @@ const RESPONSE_HEADERS = ["content-type", "retry-after", "x-request-id"];
 const refuse = (status: number, code: string, message: string) =>
   Response.json({ success: false, code, message, errors: {} }, { status, headers: { "Cache-Control": "no-store" } });
 
+/** The auth/ routes that neither issue nor revoke tokens. Everything else under auth/ does. */
+const SAFE_AUTH_ROUTES = new Set(["me", "verify-email", "resend-verification"]);
+
 function allowedPath(segments: string[]) {
   if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) return false;
-  // Only the account endpoint under auth/: the rest issue or revoke tokens.
-  return segments[0] !== "auth" || (segments.length === 2 && segments[1] === "me");
+  return segments[0] !== "auth" || (segments.length === 2 && SAFE_AUTH_ROUTES.has(segments[1]));
 }
 
 async function proxy(request: Request, ctx: RouteContext<"/api/backend/[...path]">) {

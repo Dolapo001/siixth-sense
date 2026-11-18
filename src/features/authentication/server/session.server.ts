@@ -6,6 +6,7 @@ import type { Contributor } from "@/features/discoveries/types";
 export type BackendMe = {
   username: string;
   email: string | null;
+  email_verified?: boolean;
   role: string;
   profile: { display_name: string; avatar_url: string };
 };
@@ -13,10 +14,12 @@ export type BackendMe = {
 export type SessionAccount = {
   user: Contributor;
   /**
-   * The wallet is the only way into this account: it has no email, so
-   * unlinking the wallet would lock the player out for good (signing in again
-   * creates a *new* account). Sign-in is wallet-only, so this is true for
-   * everyone who hasn't added an email.
+   * The wallet is the only way into this account, so unlinking it would lock
+   * the player out for good (signing in again creates a *new* account). Only a
+   * *verified* email counts as another way in, matching the backend's unlink
+   * guard: an unverified one can't reach password reset. (auth/me doesn't say
+   * whether there's a password; legacy password accounts without a verified
+   * email are treated as wallet-only, which errs on the safe side.)
    */
   walletOnly: boolean;
 };
@@ -32,6 +35,6 @@ export async function sessionUser(): Promise<SessionAccount | null> {
       display_name: me.profile.display_name,
       avatar_url: me.profile.avatar_url,
     }),
-    walletOnly: !me.email,
+    walletOnly: !(me.email && me.email_verified),
   };
 }

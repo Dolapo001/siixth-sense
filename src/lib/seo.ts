@@ -27,6 +27,7 @@ export const privatePaths = [
   "/profile$", // your own profile only; /profile/[username] is public
   "/settings",
   "/notifications",
+  "/verify-email",
   "/rewards",
   "/web3",
   "/admin",

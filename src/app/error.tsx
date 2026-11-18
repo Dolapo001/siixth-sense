@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { ErrorState } from "@/components/shared/states";
 
-/** Errors in the landing, auth and admin areas (the platform has its own boundary). */
+/** Errors in the landing and auth areas (the platform has its own boundary). */
 export default function RootError({ error, retry }: { error: unknown; retry: () => void }) {
   useEffect(() => {
     // Replace with an error reporting service once one is chosen.

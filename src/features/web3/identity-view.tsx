@@ -196,8 +196,11 @@ function OwnershipPanel({
           // so unlinking here is unrecoverable. The backend has no guard yet,
           // so the only safe thing is not to offer it.
           <p className="text-small text-muted">
-            This wallet is how you sign in, so it can&apos;t be unlinked. Add an email to your account first and you&apos;ll
-            be able to change wallets.
+            This wallet is how you sign in, so it can&apos;t be unlinked.{" "}
+            <Link href="/settings#email" className="text-accent underline underline-offset-2 hover:decoration-2">
+              Add and verify an email
+            </Link>{" "}
+            first and you&apos;ll be able to change wallets.
           </p>
         ) : (
           <Button variant="ghost" size="sm" className="self-start" onClick={() => void flow.unlink()}>

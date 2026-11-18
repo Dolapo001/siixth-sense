@@ -11,7 +11,7 @@ export default function Web3Layout({ children }: { children: React.ReactNode }) 
       <PageContainer>
         <PageHeader
           eyebrow="Optional"
-          title="Web3 Identity"
+          title="Wallet"
           description="Link a Solana wallet to receive attestations and rewards. Not required for anything else."
           actions={
             <Badge tone="signal" className="self-start">

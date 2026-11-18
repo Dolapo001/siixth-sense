@@ -3,11 +3,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisJob, Detection } from "@/features/image-analysis/types";
+import type { WorldMarker } from "@/features/world/types";
 import { ShareWithCommunity, uncertaintyOf } from "./share-with-community";
 
 const state = vi.hoisted(() => ({
   session: null as unknown,
   source: null as unknown,
+  markers: [] as WorldMarker[],
 }));
 vi.mock("@/features/authentication/hooks", () => ({
   useSession: () => ({ isPending: false, data: state.session }),
@@ -15,6 +17,22 @@ vi.mock("@/features/authentication/hooks", () => ({
 vi.mock("@/features/discoveries/hooks", () => ({
   useDiscoverySource: () => ({ isSuccess: true, data: state.source }),
 }));
+vi.mock("@/features/world/hooks", () => ({
+  useWorldOverview: () => ({ data: { markers: state.markers } }),
+}));
+
+const mapPlace = (locationId: string, title: string, areas: string[], extra: Partial<WorldMarker> = {}): WorldMarker => ({
+  id: `m-${locationId}`,
+  locationId,
+  title,
+  category: "location",
+  precision: "approximate",
+  coordinate: { x: 1, y: 1 },
+  regionId: null,
+  verification: "ai_suggested",
+  areas,
+  ...extra,
+});
 
 const detection = (confidence: number): Detection => ({
   id: "d1",
@@ -48,6 +66,7 @@ const renderShare = (j: AnalysisJob) =>
 beforeEach(() => {
   state.session = { user: { username: "someone", displayName: "Someone" } };
   state.source = { submitDiscovery: vi.fn(async () => ({ id: "shared-1" })) };
+  state.markers = [];
 });
 
 describe("uncertaintyOf", () => {
@@ -84,6 +103,46 @@ describe("ShareWithCommunity", () => {
       "href",
       "/discoveries/shared-1",
     );
+  });
+
+  it("lists every named World map place, searchable, and shares the one picked", async () => {
+    state.markers = [
+      mapPlace("L1", "Vice Regal", ["Washington Beach"]),
+      mapPlace("L39", "Seven Seas Seafood", ["Shore Dr", "Ocean Beach", "Vice Beach"]),
+      mapPlace("L50", "Boardwalk", ["Shore Dr", "Ocean Beach"]),
+      mapPlace("L60", "Unnamed pier", ["Vice Beach"], { nameKnown: false }),
+    ];
+    renderShare(job([detection(0.9)], false));
+    await userEvent.click(screen.getByRole("button", { name: "Share with the community" }));
+    const dialog = screen.getByRole("dialog");
+    const where = within(dialog).getByLabelText(/Where is it/);
+    const options = () => within(where).getAllByRole("option").map((o) => o.textContent);
+    expect(options()).toEqual([
+      "Not sure",
+      "Boardwalk — Shore Dr, Ocean Beach",
+      "Seven Seas Seafood — Shore Dr, Ocean Beach",
+      "Vice Regal — Washington Beach",
+    ]);
+    await userEvent.type(within(dialog).getByLabelText(/Find a place/), "seven");
+    expect(options()).toEqual(["Not sure", "Seven Seas Seafood — Shore Dr, Ocean Beach"]);
+    await userEvent.selectOptions(where, "L39");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Share" }));
+    const source = state.source as { submitDiscovery: ReturnType<typeof vi.fn> };
+    expect(source.submitDiscovery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: { id: "L39", name: "Seven Seas Seafood", areas: ["Shore Dr", "Ocean Beach", "Vice Beach"] },
+      }),
+    );
+  });
+
+  it("keeps the analysis suggestions first and doesn't list them twice", async () => {
+    state.markers = [mapPlace("L1", "Vice Regal", ["Washington Beach"]), mapPlace("L2", "Boardwalk", [])];
+    renderShare(job([detection(0.9)]));
+    await userEvent.click(screen.getByRole("button", { name: "Share with the community" }));
+    const where = within(screen.getByRole("dialog")).getByLabelText(/Where is it/);
+    expect(within(where).getByRole("group", { name: "Suggested by the analysis" })).toHaveTextContent("Vice Regal");
+    expect(within(where).getByRole("group", { name: "Places on the World map" })).not.toHaveTextContent("Vice Regal");
+    expect(where).toHaveValue("L1");
   });
 
   it("asks signed-out players to sign in", () => {

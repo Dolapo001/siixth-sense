@@ -36,6 +36,8 @@ export type LocationMatch = {
   name: string;
   precision: LocationPrecision;
   confidence?: number;
+  /** Why it was suggested, in plain words (e.g. 'Sign reads "SEVEN SEAS SEAFOOD"'). */
+  basis?: string;
 };
 
 export type AnalysisJob = {

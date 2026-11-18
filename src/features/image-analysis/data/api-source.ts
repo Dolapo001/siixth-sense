@@ -8,6 +8,7 @@
 import { api, ApiError, apiUrl, readEnvelope } from "@/lib/api/client";
 import { fromBackendCategory, toConfidenceLevel, toPrecision } from "@/lib/api/mappers";
 import { getWorldDataSource } from "@/features/world/data/source";
+import { placesFromAnalysis } from "../place-matching";
 import type { AnalysisJob, Detection, JobStatus, LocationMatch } from "../types";
 import { UploadCancelledError, type AnalysisDataSource } from "./source";
 
@@ -20,7 +21,7 @@ type BackendDetection = {
   confidence: number | null;
   band: string | null;
   bbox: [number, number, number, number] | null;
-  catalogue_name: string | null;
+  catalogue_name: string | null; // "" when nothing in the catalogue matched
   related_discoveries: { public_id: string; title: string }[];
   related_locations: { public_id: string; name: string; precision: string }[];
 };
@@ -30,8 +31,16 @@ type BackendAnalysis = {
   status: string;
   error: string | null;
   created_at: string;
-  scene_context: { candidate_location: string | null; location_certainty?: string } | null;
-  location_matches: { public_id: string; kind: "location" | "region"; name: string; precision: string; confidence: number | null }[];
+  scene_context: { candidate_location: string | null; location_certainty?: string; visible_text?: string[] } | null;
+  location_matches: {
+    public_id: string;
+    kind: "location" | "region";
+    name: string;
+    precision: string;
+    confidence: number | null;
+    /** How the model placed it; absent on older results. */
+    certainty?: "confirmed" | "likely" | null;
+  }[];
   entities: BackendDetection[];
 };
 
@@ -48,7 +57,7 @@ function toDetection(e: BackendDetection): Detection {
   return {
     id: e.public_id,
     // The catalogue name is set only when the server confirmed an exact catalogue match.
-    label: e.catalogue_name ?? e.label,
+    label: e.catalogue_name || e.label,
     category: fromBackendCategory(e.category),
     confidence: e.confidence ?? undefined,
     confidenceLevel: toConfidenceLevel(e.band),
@@ -65,25 +74,23 @@ function toDetection(e: BackendDetection): Detection {
   };
 }
 
-/**
- * The model's guess at where the screenshot was taken, matched by exact name
- * (case-insensitive) against named places on the World map. Never a fuzzy
- * guess: no exact name, no match.
- */
-async function worldPlacesNamed(name: string | null | undefined): Promise<LocationMatch[]> {
-  const wanted = name?.trim().toLowerCase();
-  if (!wanted) return [];
+/** Named World map places the analysis points to (see placesFromAnalysis). The map is optional here. */
+async function worldPlacesFor(scene: BackendAnalysis["scene_context"], detections: Detection[]): Promise<LocationMatch[]> {
+  if (!scene?.candidate_location && !scene?.visible_text?.length && detections.length === 0) return [];
   try {
     const world = await getWorldDataSource();
     const markers = (await world?.listMarkers()) ?? [];
-    return markers
-      .filter((m) => m.nameKnown !== false && m.coordinate && m.title.toLowerCase() === wanted)
-      .slice(0, 3)
-      .map((m) => ({ locationId: m.locationId, name: m.title, precision: m.precision }));
+    return placesFromAnalysis(markers, {
+      candidateLocation: scene?.candidate_location,
+      visibleText: scene?.visible_text,
+      detections,
+    });
   } catch {
     return [];
   }
 }
+
+const certaintyBasis = { confirmed: "Named on screen", likely: "Likely, from the scenery" } as const;
 
 /** Backend places keep a "location:" / "region:" prefix so sharing knows which field to send. */
 const toBackendMatch = (m: BackendAnalysis["location_matches"][number]): LocationMatch => ({
@@ -91,6 +98,7 @@ const toBackendMatch = (m: BackendAnalysis["location_matches"][number]): Locatio
   name: m.name,
   precision: toPrecision(m.precision),
   confidence: m.confidence ?? undefined,
+  basis: m.certainty ? certaintyBasis[m.certainty] : undefined,
 });
 
 /**
@@ -171,8 +179,8 @@ export async function createApiAnalysisSource(): Promise<AnalysisDataSource> {
         };
       }
       if (status === "completed") {
-        const places = await worldPlacesNamed(job.scene_context?.candidate_location);
         result.detections = job.entities.map(toDetection);
+        const places = await worldPlacesFor(job.scene_context, result.detections);
         result.locationMatches = [...job.location_matches.map(toBackendMatch), ...places];
       }
       return result;

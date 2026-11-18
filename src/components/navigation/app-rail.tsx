@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SixthSenseSymbol, SixthSenseWordmark } from "@/components/brand/logo";
+import { UnreadBadge, UnreadLabel } from "@/features/notifications/unread-badge";
 import { cn } from "@/lib/utilities/cn";
 import { isActive, primaryNav, secondaryNav, utilityNav, type NavItem } from "./nav-items";
 
@@ -25,9 +26,13 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
         {active && (
           <span aria-hidden className="ss-fade-in absolute top-2 bottom-2 -left-2.5 w-0.5 rounded-full bg-accent" />
         )}
-        <Icon aria-hidden className="size-5 shrink-0" />
+        <span className="relative shrink-0">
+          <Icon aria-hidden className="size-5" />
+          {item.showsUnread && <UnreadBadge />}
+        </span>
         {/* Always in the accessibility tree, so it names the link even while hidden. */}
         <span className={cn("text-small font-medium", revealOnExpand)}>{item.label}</span>
+        {item.showsUnread && <UnreadLabel />}
       </Link>
     </li>
   );

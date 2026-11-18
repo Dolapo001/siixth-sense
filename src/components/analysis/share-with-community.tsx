@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleCheck, Users } from "lucide-react";
 import { ActionError, SignInPrompt } from "@/components/community/action-bits";
@@ -15,12 +15,29 @@ import { shareSchema } from "@/features/community/schemas";
 import { useDiscoverySource } from "@/features/discoveries/hooks";
 import type { AnalysisJob } from "@/features/image-analysis/types";
 import { categoryConfig } from "@/features/world/categories";
-import { discoveryCategories } from "@/features/world/types";
+import { useWorldOverview } from "@/features/world/hooks";
+import { discoveryCategories, type WorldMarker } from "@/features/world/types";
 import { announce } from "@/lib/announce";
 import { cn } from "@/lib/utilities/cn";
 import type { z } from "zod";
 
 type ShareInput = z.infer<typeof shareSchema>;
+
+/** Named places on the World map, A–Z: what a player can pick when the analysis didn't place it. */
+function useMapPlaces(): WorldMarker[] {
+  const world = useWorldOverview();
+  const markers = world.data?.markers;
+  return useMemo(
+    () =>
+      (markers ?? [])
+        .filter((m) => m.nameKnown !== false && m.coordinate)
+        .sort((a, b) => a.title.localeCompare(b.title)),
+    [markers],
+  );
+}
+
+const placeLabel = (place: WorldMarker) =>
+  place.areas?.length ? `${place.title} — ${place.areas.slice(0, 2).join(", ")}` : place.title;
 
 /** Below this, a detection or location is treated as a guess worth a second opinion. */
 const UNSURE_BELOW = 0.5;
@@ -44,6 +61,7 @@ export function ShareWithCommunity({ job }: { job: AnalysisJob }) {
   const [sharedId, setSharedId] = useState<string | null>(null);
   const session = useSession();
   const source = useDiscoverySource();
+  const places = useMapPlaces();
   const unsure = uncertaintyOf(job);
 
   return (
@@ -91,14 +109,21 @@ export function ShareWithCommunity({ job }: { job: AnalysisJob }) {
           open={open}
           onOpenChange={setOpen}
           job={job}
+          places={places}
           onShare={async (input) => {
-            const location = job.locationMatches.find((m) => m.locationId === input.locationId);
+            const match = job.locationMatches.find((m) => m.locationId === input.locationId);
+            const place = places.find((p) => p.locationId === input.locationId);
+            const location = match
+              ? { id: match.locationId, name: match.name, areas: [] }
+              : place
+                ? { id: place.locationId, name: place.title, areas: place.areas ?? [] }
+                : null;
             const { id } = await source.data!.submitDiscovery({
               analysisJobId: job.id,
               title: input.title,
               category: input.category,
               note: input.note || undefined,
-              location: location ? { id: location.locationId, name: location.name, areas: [] } : null,
+              location,
             });
             setSharedId(id);
             announce("Shared with the community");
@@ -113,18 +138,22 @@ function ShareDialog({
   open,
   onOpenChange,
   job,
+  places,
   onShare,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: AnalysisJob;
+  places: WorldMarker[];
   onShare: (input: ShareInput) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [placeQuery, setPlaceQuery] = useState("");
   const top = job.detections[0];
   const {
     register,
     handleSubmit,
+    control: formControl,
     formState: { errors, isSubmitting },
   } = useForm<ShareInput>({
     resolver: zodResolver(shareSchema),
@@ -136,6 +165,16 @@ function ShareDialog({
       locationId: job.locationMatches[0]?.locationId ?? "",
     },
   });
+
+  const selected = useWatch({ control: formControl, name: "locationId" });
+  const suggested = new Set(job.locationMatches.map((m) => m.locationId));
+  const wanted = placeQuery.trim().toLowerCase();
+  const listed = places.filter(
+    (p) =>
+      !suggested.has(p.locationId) &&
+      // Keep the current choice listed, or the select would silently change it.
+      (p.locationId === selected || !wanted || placeLabel(p).toLowerCase().includes(wanted)),
+  );
 
   return (
     <Dialog
@@ -175,15 +214,51 @@ function ShareDialog({
             </Select>
           )}
         </Field>
-        <Field label="Where is it?" hint="Pick a candidate from the analysis, or say you're not sure.">
+        {places.length > 0 && (
+          <Field
+            label="Find a place"
+            hint={wanted ? `${listed.length} of ${places.length - suggested.size} map places match.` : "Filters the list below by name or area."}
+          >
+            {(control) => (
+              <Input
+                {...control}
+                type="search"
+                value={placeQuery}
+                onChange={(event) => setPlaceQuery(event.target.value)}
+                placeholder="e.g. Seven Seas or Ocean Beach"
+              />
+            )}
+          </Field>
+        )}
+        <Field
+          label="Where is it?"
+          hint={
+            places.length > 0
+              ? "Pick a suggestion from the analysis or any place on the World map, or say you're not sure."
+              : "Pick a candidate from the analysis, or say you're not sure."
+          }
+        >
           {(control) => (
             <Select {...control} {...register("locationId")}>
               <option value="">Not sure</option>
-              {job.locationMatches.map((match) => (
-                <option key={match.locationId} value={match.locationId}>
-                  {match.name}
-                </option>
-              ))}
+              {job.locationMatches.length > 0 && (
+                <optgroup label="Suggested by the analysis">
+                  {job.locationMatches.map((match) => (
+                    <option key={match.locationId} value={match.locationId}>
+                      {match.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {listed.length > 0 && (
+                <optgroup label="Places on the World map">
+                  {listed.map((place) => (
+                    <option key={place.locationId} value={place.locationId}>
+                      {placeLabel(place)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </Select>
           )}
         </Field>

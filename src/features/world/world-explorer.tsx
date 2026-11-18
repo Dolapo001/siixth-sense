@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { Info, ListTree, Map as MapIcon, MonitorX } from "lucide-react";
+import { ChevronDown, Info, Layers, ListTree, Map as MapIcon, MonitorX } from "lucide-react";
 import { LayerFilter } from "@/components/maps/layer-filter";
 import { LocationDetails } from "@/components/maps/location-details";
 import { LocationList } from "@/components/maps/location-list";
@@ -107,6 +107,8 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
   const router = useRouter();
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [layers, setLayers] = useState<Set<WorldLayerId>>(defaultLayers);
+  // The layer chips fold away behind one button so they don't crowd the map.
+  const [layersOpen, setLayersOpen] = useState(false);
   const [showUnplaced, setShowUnplaced] = useState(false);
   // Phones have no room for the floating legend; it opens as a bottom sheet instead.
   const [showLegend, setShowLegend] = useState(false);
@@ -251,7 +253,7 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
           />
           <button
             type="button"
-            onClick={openBrowse}
+            onClick={browsing ? closeBrowse : openBrowse}
             aria-pressed={browsing}
             className={cn(
               "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-small backdrop-blur transition-colors",
@@ -264,8 +266,22 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
             Browse
           </button>
         </div>
-        <div className="pointer-events-auto max-w-full">
-          <LayerFilter selected={layers} onChange={setLayers} counts={counts} />
+        <div className="pointer-events-auto flex max-w-full items-start gap-2">
+          <button
+            type="button"
+            onClick={() => setLayersOpen((open) => !open)}
+            aria-expanded={layersOpen}
+            aria-controls="map-layer-chips"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border-strong bg-surface/95 px-3 text-meta font-medium text-fg backdrop-blur transition-colors hover:border-fg/60 pointer-coarse:h-10"
+          >
+            <Layers aria-hidden className="size-3.5 text-accent" />
+            Layers
+            <span className="meta text-muted">{layers.size} on</span>
+            <ChevronDown aria-hidden className={cn("size-3.5 text-muted transition-transform", layersOpen && "rotate-180")} />
+          </button>
+          <div id="map-layer-chips" hidden={!layersOpen} className="min-w-0 flex-1">
+            <LayerFilter selected={layers} onChange={setLayers} counts={counts} />
+          </div>
         </div>
       </div>
 

@@ -115,11 +115,18 @@ export default function PlaceLayers({ map, markers, selectedId, onSelect }: Plac
     let cancelled = false;
     const popup = new Popup({ closeButton: false, closeOnClick: false, offset: 12, className: "ss-map-label" });
 
+    // MapLibre can ask for the same image more than once in a batch, and a throw here
+    // (adding a name twice) drops every other image in that batch. Guard and contain it.
     const onMissingImage = ({ id }: { id: string }) => {
-      if (id.startsWith("count-")) drawCountImage(map, id);
-      else if (id.startsWith("label-")) {
-        const place = placeById(id.slice("label-".length));
-        drawLabelImage(map, id, place && { title: place.title, named: place.nameKnown !== false });
+      if (map.hasImage(id)) return;
+      try {
+        if (id.startsWith("count-")) drawCountImage(map, id);
+        else if (id.startsWith("label-")) {
+          const place = placeById(id.slice("label-".length));
+          drawLabelImage(map, id, place && { title: place.title, named: place.nameKnown !== false });
+        }
+      } catch (error) {
+        console.warn("World map: couldn't draw", id, error);
       }
     };
     // One handler for taps and clicks with a forgiving hit box: dots are small, fingers aren't.

@@ -208,6 +208,60 @@ describe("profiles from the backend", () => {
   });
 });
 
+describe("screenshot analysis from the backend", () => {
+  /** The upload goes over XMLHttpRequest (for progress); answer it with `image`. */
+  function stubUpload(image: { public_id: string; latest_analysis: string | null }) {
+    class FakeXhr {
+      status = 200;
+      responseText = "";
+      responseType = "";
+      upload = { onprogress: null };
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
+      open() {}
+      abort() {}
+      send() {
+        this.responseText = JSON.stringify({ success: true, message: "OK", data: image });
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+    vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  }
+
+  const upload = async () => {
+    const { createApiAnalysisSource } = await import("@/features/image-analysis/data/api-source");
+    const source = await createApiAnalysisSource();
+    const file = new File([new Uint8Array([1, 2, 3])], "shot.png", { type: "image/png" });
+    return source.upload(file, { onProgress: () => {}, signal: new AbortController().signal });
+  };
+
+  const constraints = { maxBytes: 10_000_000, acceptedTypes: ["image/png"], pollIntervalMs: 1000 };
+
+  it("starts a fresh analysis when a re-uploaded screenshot's last one failed", async () => {
+    // Found live 2026-11-18: identical bytes return the existing image, and the
+    // adapter reused its failed analysis, so the screenshot could never succeed.
+    stubUpload({ public_id: "img1", latest_analysis: "old" });
+    respond = (url, method) =>
+      url.endsWith("/analyses/constraints") ? ok(constraints)
+      : url.endsWith("/analyses/old") ? ok({ status: "failed" })
+      : url.endsWith("/analyses") && method === "POST" ? ok({ public_id: "fresh" }, 201)
+      : fail("unexpected", 500);
+    expect(await upload()).toEqual({ jobId: "fresh" });
+    expect(requests.find((r) => r.method === "POST")?.body).toEqual({ image: "img1" });
+  });
+
+  it("reuses a re-uploaded screenshot's analysis that has results, without paying again", async () => {
+    stubUpload({ public_id: "img1", latest_analysis: "done" });
+    respond = (url) =>
+      url.endsWith("/analyses/constraints") ? ok(constraints)
+      : url.endsWith("/analyses/done") ? ok({ status: "completed" })
+      : fail("unexpected", 500);
+    expect(await upload()).toEqual({ jobId: "done" });
+    expect(requests.some((r) => r.method === "POST")).toBe(false);
+  });
+});
+
 it("ApiError keeps the status for callers that branch on it", () => {
   expect(new ApiError("Nope", 409).status).toBe(409);
 });

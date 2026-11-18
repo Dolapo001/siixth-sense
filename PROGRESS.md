@@ -10,9 +10,9 @@ Update this file at the end of every work session. The detailed phase checklist 
 |---|---|
 | `pnpm typecheck` | ✅ passes |
 | `pnpm lint` | ✅ passes |
-| `pnpm test` | ✅ 38 files, 343 tests passing |
+| `pnpm test` | ✅ 38 files, 345 tests passing |
 | Backend tests (`sceneid-backend`) | ✅ 280 passing |
-| `node scripts/e2e-journey.mjs` (live backend) | ✅ 36 checks passing |
+| `node scripts/e2e-journey.mjs --verify` (live backend) | ✅ 46 checks passing |
 
 ## Phase status
 
@@ -54,7 +54,9 @@ What the run found, and what was fixed the same day (backend changes are in `sce
 2. **Every account could lock itself out** — sign-in links the wallet, `/web3` offered "Unlink wallet" to everyone, and the backend allowed it (204). Fixed on both sides: the session carries a `walletOnly` flag and the UI hides the action; the backend now returns 409.
 3. **One auth throttle bucket for the whole site** — and token refresh shares that scope, so a throttled refresh would sign players out at random. Fixed: the backend reads `NUM_PROXIES` (default 0, safe) and the frontend forwards the client address on sign-in, refresh and every proxied call. **Production needs `NUM_PROXIES=1` on the backend.**
 4. **Publishing with no note failed** — the frontend sends `description: ""` and the backend rejected it. Fixed on the backend.
-5. **"SceneID" is user-visible in the wallet signing prompt** (`SceneID wallet verification`), on the one screen every player passes through. Still open (Phase E).
+5. **Confirm always failed** — the backend requires a reason on every vote and the Confirm button sent none. Fixed on the frontend: both votes ask for a reason, and votes are shown as final (they can't be changed).
+6. **A screenshot whose analysis once failed could never be analysed again** — re-uploads reused the failed job. Fixed in the analysis adapter: a failed or cancelled analysis is replaced by a fresh one; a completed one is reused.
+7. **"SceneID" is user-visible in the wallet signing prompt** (`SceneID wallet verification`), on the one screen every player passes through. Still open (Phase E).
 
 The harness itself got one thing wrong along the way worth remembering: POSTing to `/api/backend/…/` *with* a trailing slash earns a 308 from Next.js, which drops the body. `apiUrl()` already strips it; the harness now does too.
 
@@ -69,7 +71,7 @@ Also confirmed: `notifications/`, `notifications/unread-count/` and `me/settings
 
 ## Open issues (ranked)
 
-1. **A successful contributor vote, attestation and rewards not yet run live.** They need accounts promoted to `contributor`; three confirmations verify a discovery, which sends a devnet memo. (Comment, suggestion, evidence, follow, report, token refresh and the vote refusals are validated: 36 harness checks.)
+1. **Rewards never grant anything**: no reward rules are seeded (they wait on the payout decision). Everything else in the journey, including the verification chain and a devnet Proof of Discovery, now runs live (`node scripts/e2e-journey.mjs --verify`, 46 checks).
 2. **Backend catalogue is empty** (0 regions, 0 locations, 0 entities locally): search, regions and analysis grounding return nothing until the official-names seed is approved and imported (backend task).
 3. **Production must set `NUM_PROXIES=1` on the backend**, or the per-client throttle fix does nothing (the header is safely ignored and the bucket is shared again).
 4. **Uploads over 4.5 MB fail on Vercel** (function body limit) while the backend allows 10 MB. Fix: presigned uploads (not built on the backend).

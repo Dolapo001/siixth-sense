@@ -7,7 +7,15 @@
 // Run: `node scripts/e2e-journey.mjs` (needs `pnpm dev` and the backend up).
 //   --base      frontend origin (default http://localhost:3000)
 //   --secret    base58 secret key, to reuse an account across runs
+//   --ip        client address to send as X-Forwarded-For (default: random TEST-NET-2)
+//   --analyse   upload → analysis → publish (a Claude call unless the backend runs SampleAnalyzer)
+//   --verify    publish → three contributor confirmations → verified → reputation →
+//               devnet Proof of Discovery. Writes to the local DB (promotes three
+//               throwaway accounts) and sends one public devnet transaction.
+//   --backend   backend dir for --verify (default ~/Downloads/sceneid-backend/backend)
+//   --image     PNG to upload (default: the Sixth Sense logo)
 import { createPrivateKey, createPublicKey, generateKeyPairSync, sign as cryptoSign } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import bs58 from "bs58";
@@ -73,7 +81,22 @@ function makeWallet(secretBase58) {
 
 // ---------------------------------------------------------------- http + jar
 
-const jar = new Map();
+// The current player's cookies and client address. `as()` swaps them so one
+// run can act as several players (the --verify leg needs four).
+let jar = new Map();
+let clientIp = CLIENT_IP;
+
+const randomIp = () => `198.51.100.${1 + Math.floor(Math.random() * 254)}`;
+
+async function as(player, fn) {
+  const previous = [jar, clientIp];
+  [jar, clientIp] = [player.jar, player.ip];
+  try {
+    return await fn();
+  } finally {
+    [jar, clientIp] = previous;
+  }
+}
 
 function remember(response) {
   for (const line of response.headers.getSetCookie?.() ?? []) {
@@ -102,7 +125,7 @@ function proxyPath(path) {
 
 async function http(method, path, body, { raw = false } = {}) {
   path = proxyPath(path);
-  const headers = { Origin: BASE, "X-Forwarded-For": CLIENT_IP };
+  const headers = { Origin: BASE, "X-Forwarded-For": clientIp };
   const cookies = cookieHeader();
   if (cookies) headers.Cookie = cookies;
   if (body !== undefined && !raw) headers["Content-Type"] = "application/json";
@@ -286,6 +309,143 @@ async function communityLeg(me) {
     const response = await http("POST", `${path}/votes/`, { vote: "confirm", reason: "Matches the badge." });
     expect(response, 403);
     return response.payload?.message ?? "403";
+  });
+}
+
+/**
+ * Runs Python in the backend's Django shell. Only the --verify leg uses it,
+ * for what no API offers by design: promoting reviewers (a role is never
+ * client-settable) and standing in for celery beat (`poll_pending`).
+ */
+function backendShell(code) {
+  const dir = arg("backend", `${process.env.HOME}/Downloads/sceneid-backend/backend`);
+  const env = { ...process.env };
+  for (const name of ["ANTHROPIC_MODEL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"]) delete env[name];
+  return execFileSync(`${dir}/.venv/bin/python`, ["manage.py", "shell", "-c", code], { cwd: dir, env, encoding: "utf8" }).trim();
+}
+
+/** A brand-new player on their own client address, signed in. */
+async function newPlayer(label) {
+  const player = { wallet: makeWallet(), jar: new Map(), ip: randomIp() };
+  await as(player, async () => {
+    const payload = expect(await signIn(player.wallet, { acceptTerms: true }), 200);
+    player.username = payload.user?.username;
+  });
+  if (!player.username) throw new Error(`${label} didn't get an account`);
+  return player;
+}
+
+/**
+ * The whole verification path: an owner publishes, three Verified
+ * Contributors confirm (with reasons), the discovery becomes verified, the
+ * owner earns reputation, and a Proof of Discovery memo lands on devnet.
+ * Opt in with --verify: it writes to the local database, spends one Claude
+ * call (unless the backend runs SampleAnalyzer) and sends one public devnet
+ * transaction.
+ */
+async function verifyLeg() {
+  let owner;
+  let discoveryId;
+  const ownerReady = await step("owner publishes a discovery", async () => {
+    owner = await newPlayer("owner");
+    return as(owner, async () => {
+      const form = new FormData();
+      const bytes = await readFile(arg("image", "public/brand/marketing/logos/sixth-sense-logo.png"));
+      form.append("image", new Blob([bytes], { type: "image/png" }), "verify.png");
+      const image = data(expect(await http("POST", "/api/backend/images/upload", form, { raw: true }), 200, 201));
+      const job = image.latest_analysis;
+      if (!job) throw new Error("upload started no analysis");
+      for (let i = 0; i < 60; i += 1) {
+        const status = data(expect(await http("GET", `/api/backend/analyses/${job}`), 200))?.status;
+        if (!["queued", "processing"].includes(status)) break;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      const created = data(
+        expect(
+          await http("POST", "/api/backend/discoveries", {
+            analysis: job,
+            title: "Harness verification test",
+            category: "object",
+            description: "",
+            tags: [],
+            submit: true,
+          }),
+          200,
+          201,
+        ),
+      );
+      discoveryId = created.public_id;
+      return `${discoveryId} by ${owner.username}`;
+    });
+  });
+  if (!ownerReady) return;
+  const detailPath = `/api/backend/discoveries/${discoveryId}/`;
+
+  const reviewers = [];
+  const promoted = await step("three reviewers promoted to Verified Contributor", async () => {
+    for (const n of [1, 2, 3]) reviewers.push(await newPlayer(`reviewer ${n}`));
+    const names = JSON.stringify(reviewers.map((r) => r.username));
+    const count = backendShell(
+      `from apps.accounts.models import User; print(User.objects.filter(username__in=${names}).update(role="contributor"))`,
+    );
+    if (count.split("\n").pop() !== "3") throw new Error(`promoted ${count}, expected 3`);
+    return reviewers.map((r) => r.username).join(", ");
+  });
+  if (!promoted) return;
+
+  for (const [index, reviewer] of reviewers.entries()) {
+    const ok = await step(`reviewer ${index + 1} confirms, with a reason`, async () =>
+      as(reviewer, async () => {
+        const viewer = data(expect(await http("GET", detailPath), 200))?.viewer;
+        if (!viewer?.vote?.allowed) throw new Error(`vote not allowed: ${viewer?.vote?.reason}`);
+        const detail = data(
+          expect(await http("POST", `${detailPath}votes/`, { vote: "confirm", reason: `Harness reviewer ${index + 1}: checks out.` }), 201),
+        );
+        const after = data(expect(await http("GET", detailPath), 200));
+        if (after.viewer?.vote?.current !== "confirm" || after.viewer?.vote?.allowed) {
+          throw new Error("vote isn't shown as final");
+        }
+        return `status ${detail.status} · ${detail.engagement?.confirmations ?? "?"} confirmation(s)`;
+      }),
+    );
+    if (!ok) return;
+  }
+
+  await step("third confirmation verified the discovery", async () => {
+    const detail = data(expect(await as(owner, () => http("GET", detailPath)), 200));
+    if (detail.status !== "verified") throw new Error(`status is ${detail.status}`);
+    return `verified · history: ${detail.verification_history?.length ?? "?"} event(s)`;
+  });
+
+  await step("owner earned reputation for the verified discovery", async () => {
+    const profile = data(expect(await as(owner, () => http("GET", `/api/backend/users/${owner.username}/`)), 200));
+    const score = profile?.stats?.reputation ?? profile?.reputation_score ?? profile?.profile?.reputation_score;
+    if (!(score > 0)) throw new Error(`reputation is ${JSON.stringify(score)}: ${JSON.stringify(profile).slice(0, 200)}`);
+    return `reputation ${score}`;
+  });
+
+  await step("Proof of Discovery memo confirmed on devnet", async () => {
+    let proof;
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      proof = data(expect(await as(owner, () => http("GET", detailPath)), 200))?.proof_of_discovery;
+      if (proof?.status === "confirmed" || proof?.status === "failed" || proof?.status === "not_eligible") break;
+      backendShell("from apps.web3.attestations import poll_pending; print(poll_pending())"); // stands in for celery beat
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    if (proof?.status !== "confirmed") throw new Error(`attestation is ${proof?.status}: ${JSON.stringify(proof)}`);
+    return `https://explorer.solana.com/tx/${proof.tx_signature}?cluster=devnet`;
+  });
+
+  await step("attestation listed publicly, as the web3 page reads it", async () => {
+    const page = data(expect(await http("GET", "/api/backend/attestations/public/"), 200));
+    const mine = page?.results?.find((a) => JSON.stringify(a).includes(discoveryId));
+    if (!mine) throw new Error(`not among ${page?.results?.length ?? 0} public attestation(s)`);
+    return `${page.results.length} public attestation(s)`;
+  });
+
+  await step("owner's rewards screen reads cleanly", async () => {
+    const rewards = data(expect(await as(owner, () => http("GET", "/api/backend/rewards/me/")), 200));
+    return `ok (${Object.keys(rewards ?? {}).join(", ")})`;
   });
 }
 
@@ -475,6 +635,11 @@ async function main() {
 
   console.log("\n── Token refresh");
   await refreshLeg(username);
+
+  if (process.argv.includes("--verify")) {
+    console.log("\n── Verification → reputation → Proof of Discovery  (local DB writes, one devnet memo)");
+    await verifyLeg();
+  }
 
   console.log("\n── Sign-out");
 

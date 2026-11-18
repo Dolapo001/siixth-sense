@@ -12,10 +12,10 @@ Tick a box only when the item is done **and verified**. Items marked 🔒 are bl
 
 | | Frontend | Backend |
 |---|---|---|
-| Tests | ✅ 343 passing / 38 files | ✅ 280 passing |
+| Tests | ✅ 345 passing / 38 files | ✅ 280 passing |
 | Typecheck / lint | ✅ / ✅ | — |
 | Built features | 21 routes, design system, shell, 5 API adapters | Full API: auth, analysis, discoveries, community, reputation, web3, rewards, dev portal |
-| Proven end to end | 🟡 sign-in → upload → analysis → publish (31 checks); comment, vote, attestation not yet | 🟡 one real Claude analysis verified; not yet on a real GTA VI screenshot |
+| Proven end to end | ✅ sign-in → analysis → publish → community → verified → devnet proof (46 checks) | 🟡 real Claude analysis verified; not yet on a real GTA VI screenshot |
 | Real data loaded | gtadb community map only | ❌ 0 regions, 0 locations, 0 entities |
 
 ---
@@ -39,19 +39,19 @@ Tick a box only when the item is done **and verified**. Items marked 🔒 are bl
 
 ## Phase A — Close the loop
 
-**Core journey and community actions work end to end (2026-11-18), 36 checks.** The adapters had never been exercised against a running backend. [`scripts/e2e-journey.mjs`](scripts/e2e-journey.mjs) now does it: it drives the real Next.js routes over HTTP with a cookie jar, signing the wallet challenges with a throwaway ed25519 keypair instead of a browser extension, so no Phantom install is needed. **31 checks, all passing**, covering sign-in → upload → analysis → publish → detail. Remaining: comment, vote, attestation, rewards (below).
+**✅ Essentially done (2026-11-18): 46 checks passing with `--verify`.** The adapters had never been exercised against a running backend. [`scripts/e2e-journey.mjs`](scripts/e2e-journey.mjs) now does it: it drives the real Next.js routes over HTTP with a cookie jar, signing the wallet challenges with a throwaway ed25519 keypair instead of a browser extension, so no Phantom install is needed. It covers sign-in → upload → analysis → publish → community actions → three confirmations → verified → reputation → devnet Proof of Discovery. Left: rewards with real amounts (no reward rules are seeded), entity/location results (need the catalogue), and turning the harness into CI integration tests.
 
 ```bash
 node scripts/e2e-journey.mjs
 ```
 
-Add `--analyse` for the upload → analysis → publish leg. To run it free and offline, start the backend with `ANALYZER_BACKEND=apps.intelligence.analyzer.SampleAnalyzer`; otherwise each run spends Claude credits. The harness sends a random TEST-NET `X-Forwarded-For` per run (override with `--ip`), so with the backend's `NUM_PROXIES=1` runs don't throttle each other.
+Add `--analyse` for the upload → analysis → publish leg. To run it free and offline, start the backend with `ANALYZER_BACKEND=apps.intelligence.analyzer.SampleAnalyzer`; otherwise each run spends Claude credits. The harness sends a random TEST-NET `X-Forwarded-For` per run (override with `--ip`), so with the backend's `NUM_PROXIES=1` runs don't throttle each other. Add `--verify` for the verification chain: it promotes three throwaway accounts to `contributor` in the local DB and sends one public devnet transaction.
 
 Setup:
 
 - [x] Backend up: `cd ~/Downloads/sceneid-backend/backend && .venv/bin/python manage.py runserver`
 - [x] Frontend `.env.local` points at it (`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1`)
-- [ ] A second account with the `contributor` role, for voting (owners can't verify their own discoveries)
+- [x] Contributor accounts for voting — `--verify` creates and promotes three per run
 
 Validated against the live backend:
 
@@ -63,7 +63,7 @@ Validated against the live backend:
 - [x] Discovery detail, including the server-computed `viewer` permissions block
 - [x] Wallet link — confirmed it already happens *as part of* wallet sign-in; linking a second wallet is refused (409 at verify)
 
-Still to do:
+Then, with the fixes it led to:
 
 - [x] Screenshot upload — multipart through the proxy, 201, image re-encoded and dimensions returned
 - [x] Analysis job starts automatically on upload and polls through its real async states to a terminal status
@@ -77,9 +77,9 @@ Still to do:
 - [x] Vote refused for a non-contributor, with the server's reason
 - [x] **Confirm always failed — fixed.** The backend requires a reason on every vote; the Confirm button sent none. Decision 2026-11-18: keep the backend rule and ask for a reason on Confirm too. The panel now opens a reason field for both votes, the type makes `reason` required end to end, and the mock source now mirrors the backend (reason required, votes final). The panel's "You can change your vote" was wrong — votes are final — and is gone.
 - [ ] Entity results · [ ] Location results — both will return nothing until the catalogue is seeded (Phase D)
-- [ ] A successful vote by a Verified Contributor (needs an account promoted to `contributor`)
-- [ ] Attestation (devnet)
-- [ ] Rewards screen against real records
+- [x] **A screenshot whose analysis once failed could never be analysed again — fixed.** Re-uploading identical bytes returns the existing image, and the adapter reused its latest analysis even when that had failed, so the player saw the same old failure forever (spotted in the backend log from a browser retry). It now reuses an analysis only while it's running or once it has results, and otherwise starts a fresh one.
+- [x] **Full verification chain, live (`--verify`)**: an owner publishes; three Verified Contributors confirm with reasons (each vote shown as final); the third confirmation verifies the discovery; the owner earns 10 reputation; the Proof of Discovery memo is confirmed on devnet ([transaction](https://explorer.solana.com/tx/5FHWPWJisGGyHR6jnytaMKn5Lm6dPhgJndDRT9sVBzv5jFsh1tDh8Q57so4ZtQrJ3vtWcxZyC3Zqs57fzgRcLyDB?cluster=devnet), checked independently on the RPC); it appears in the public attestations list; the rewards screen reads cleanly. Reviewers are promoted in the DB because the role is never client-settable, and `poll_pending()` stands in for celery beat.
+- [ ] Rewards with real amounts — the screen reads cleanly, but no reward rules are seeded, so nothing is ever granted (`PUT /admin/rewards/rules`; rules wait on the payout decision under "Needs a person")
 - [ ] API integration tests against a seeded backend (plan §6.6) — the harness is the skeleton for these
 
 ### ✅ Analysis was broken against the real Claude API — fixed 2026-11-18

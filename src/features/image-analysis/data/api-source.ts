@@ -93,6 +93,21 @@ const toBackendMatch = (m: BackendAnalysis["location_matches"][number]): Locatio
   confidence: m.confidence ?? undefined,
 });
 
+/**
+ * The analysis to follow for an uploaded image. Re-uploading identical bytes
+ * returns the existing image with its latest analysis: reuse it while it is
+ * running or once it has results (no paying twice for the same answer), but
+ * start a fresh one if it failed or was cancelled — otherwise a screenshot
+ * whose analysis once failed could never be analysed again.
+ */
+async function analysisFor(image: { public_id: string; latest_analysis: string | null }): Promise<string> {
+  if (image.latest_analysis) {
+    const latest = await api<{ status: string }>(`analyses/${encodeURIComponent(image.latest_analysis)}/`);
+    if (toJobStatus(latest.status) !== "failed") return image.latest_analysis;
+  }
+  return (await api<{ public_id: string }>("analyses/", { method: "POST", body: { image: image.public_id } })).public_id;
+}
+
 function uploadMessage(error: ApiError) {
   if (error.status === 401) return "Sign in to analyse screenshots.";
   return error.message;
@@ -125,10 +140,7 @@ export async function createApiAnalysisSource(): Promise<AnalysisDataSource> {
               headers: { "Content-Type": "application/json" },
             });
             const image = await readEnvelope<{ public_id: string; latest_analysis: string | null }>(response);
-            // Re-uploading identical bytes returns the existing image; start an analysis if it has none.
-            const jobId =
-              image.latest_analysis ??
-              (await api<{ public_id: string }>("analyses/", { method: "POST", body: { image: image.public_id } })).public_id;
+            const jobId = await analysisFor(image);
             onProgress(1);
             resolve({ jobId });
           } catch (error) {

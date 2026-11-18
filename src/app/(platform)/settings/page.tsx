@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { FeaturePlaceholder } from "@/components/layout/feature-placeholder";
+import { PageContainer, PageHeader } from "@/components/layout/page-header";
+import { AccountPanel } from "@/features/authentication/wallet-sign-in";
 
 export const metadata: Metadata = { title: "Settings" };
 
-// Phase 3 placeholder. Replaced in Phase 4.
 export default function SettingsPage() {
   return (
-    <FeaturePlaceholder
-      title="Settings"
-      description="Account, privacy and display preferences."
-      unavailable="Account settings need sign-in, which isn't set up yet."
-    />
+    <PageContainer>
+      <PageHeader eyebrow="Account" title="Settings" description="Your account and how you sign in." />
+      <section aria-labelledby="account-heading" className="flex max-w-xl flex-col gap-4 rounded-lg border border-border bg-surface p-5">
+        <h2 id="account-heading" className="text-heading font-semibold">
+          Account
+        </h2>
+        <AccountPanel />
+      </section>
+    </PageContainer>
   );
 }

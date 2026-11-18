@@ -1,17 +1,18 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
-import { UnavailableState } from "@/components/shared/states";
+import { LoadingState } from "@/components/shared/states";
+import { WalletSignIn } from "@/features/authentication/wallet-sign-in";
+import { SolanaWalletProvider } from "@/features/web3/wallet";
 
 export const metadata: Metadata = { title: "Create account" };
 
-// Placeholder until the auth method is decided (see docs/phase-1-assessment.md).
+// With wallet sign-in, creating an account and signing in are the same step.
 export default function RegisterPage() {
   return (
-    <UnavailableState
-      headingLevel={1}
-      title="Create account"
-      description="Account creation isn't set up yet. The authentication method hasn't been decided."
-      action={{ label: "Continue without signing in", href: "/world" }}
-      className="py-10"
-    />
+    <SolanaWalletProvider>
+      <Suspense fallback={<LoadingState label="Loading sign-in" pageTitle="Create your account" className="p-6" />}>
+        <WalletSignIn mode="create" />
+      </Suspense>
+    </SolanaWalletProvider>
   );
 }

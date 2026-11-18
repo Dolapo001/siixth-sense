@@ -3,23 +3,20 @@ import type { Metadata } from "next";
 /*
  * Search indexing rules.
  *
- * Public pages (world, discoveries, community, leaderboard, contributor
- * profiles) are meant to be found. But until the backend is connected they
- * only show "not connected yet" placeholders, which shouldn't be indexed.
- * So they become indexable once NEXT_PUBLIC_API_BASE_URL is set.
+ * The whole app sits behind sign-in (src/proxy.ts), so crawlers only ever
+ * reach the landing page. The platform pages keep their public metadata
+ * (canonicals, social tags) but stay out of search and the sitemap; flip
+ * these flags back on if any of them are opened to signed-out visitors.
  * Personal and account pages are never indexed.
  */
 
-export const publicPagesIndexable = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL);
+export const publicPagesIndexable = false;
 
 /** Public platform pages that wait for the backend, in sitemap order. */
 export const publicPaths = ["/discoveries", "/community", "/leaderboard"] as const;
 
-/**
- * The World pages already show real content (the GTA VI community map and its
- * places), so they're indexable now, backend or not.
- */
-export const worldPagesIndexable = true;
+/** The World pages (the GTA VI community map and its places). Behind sign-in like the rest. */
+export const worldPagesIndexable = false;
 
 /** Never indexed: personal, account and internal pages. */
 export const privatePaths = [

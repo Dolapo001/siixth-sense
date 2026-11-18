@@ -12,28 +12,19 @@ async function load() {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("indexing rules", () => {
-  it("keeps public pages out of search until the backend is connected", async () => {
-    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "");
-    const { seo, sitemap } = await load();
-    expect(seo.publicPage({ title: "World", description: "d", path: "/world" }).robots).toEqual({
-      index: false,
-      follow: true,
-    });
-    const urls = sitemap().map((entry) => entry.url);
-    expect(urls).not.toContainEqual(expect.stringContaining("/discoveries"));
-    // The World pages show real map data already, so they're listed regardless.
-    expect(urls).toContainEqual(expect.stringMatching(/\/world$/));
-    expect(urls).toContainEqual(expect.stringMatching(/\/world\/L1$/));
-  });
-
-  it("indexes public pages, with canonicals, once an API is configured", async () => {
+  it("lists only the landing page, since the app is behind sign-in", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.example.test");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://site.example.test");
-    const { seo, sitemap } = await load();
+    const { sitemap } = await load();
+    expect(sitemap().map((entry) => entry.url)).toEqual(["https://site.example.test"]);
+  });
+
+  it("keeps canonicals on platform pages but leaves them out of search", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.example.test");
+    const { seo } = await load();
     const meta = seo.publicPage({ title: "Discoveries", description: "d", path: "/discoveries" });
-    expect(meta.robots).toEqual({ index: true, follow: true });
+    expect(meta.robots).toEqual({ index: false, follow: true });
     expect(meta.alternates?.canonical).toBe("/discoveries");
-    expect(sitemap().map((entry) => entry.url)).toContain("https://site.example.test/discoveries");
   });
 
   it("disallows personal, account and admin pages", async () => {

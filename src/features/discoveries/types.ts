@@ -98,3 +98,15 @@ export type ReportReason = (typeof reportReasons)[number]["value"];
 export type ReportTarget = { kind: "discovery" | "comment"; id: string };
 
 export type Page<T> = { items: T[]; total: number; page: number; pageSize: number };
+
+/** Sharing an analysed screenshot with the community as a new discovery (POST /discoveries). */
+export type DiscoverySubmission = {
+  /** The analysis job the screenshot went through; the server already has the image. */
+  analysisJobId: string;
+  title: string;
+  category: DiscoveryCategory;
+  /** What the contributor thinks it is, or why they're unsure. */
+  note?: string;
+  /** A candidate place from the analysis, if the contributor picked one. */
+  location: { id: string; name: string; areas: string[] } | null;
+};

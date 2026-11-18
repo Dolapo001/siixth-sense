@@ -6,6 +6,8 @@ import { SignalMark } from "@/components/brand/brand-motion";
 import { AnalysisProgress } from "@/components/analysis/analysis-progress";
 import { DetectionList } from "@/components/analysis/detection-list";
 import { LocationMatches } from "@/components/analysis/location-matches";
+import { ResultSources } from "@/components/analysis/result-sources";
+import { ShareWithCommunity } from "@/components/analysis/share-with-community";
 import { ScreenshotStage } from "@/components/analysis/screenshot-stage";
 import { UploadDropzone } from "@/components/analysis/upload-dropzone";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
@@ -204,6 +206,8 @@ function Workspace({ source }: { source: AnalysisDataSource }) {
                 </h2>
                 <LocationMatches matches={job.locationMatches} />
               </section>
+              <ShareWithCommunity job={job} />
+              <ResultSources />
             </>
           )}
         </aside>

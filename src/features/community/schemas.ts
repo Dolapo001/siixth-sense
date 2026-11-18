@@ -51,3 +51,11 @@ export type SuggestionInput = z.infer<typeof suggestionSchema>;
 export type EvidenceInput = z.infer<typeof evidenceSchema>;
 export type DisputeInput = z.infer<typeof disputeSchema>;
 export type ReportInput = z.infer<typeof reportSchema>;
+
+export const shareSchema = z.object({
+  title: z.string().trim().min(3, "Give it a short title.").max(100, "Keep the title under 100 characters."),
+  category: z.enum(discoveryCategories, { message: "Choose a category." }),
+  note: z.string().trim().max(500, "Keep the note under 500 characters.").optional(),
+  /** "" = not sure where it is. */
+  locationId: z.string(),
+});

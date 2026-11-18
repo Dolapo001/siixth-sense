@@ -11,6 +11,7 @@ import type {
   ReportReason,
   ReportTarget,
   Vote,
+  DiscoverySubmission,
 } from "../types";
 
 /**
@@ -36,6 +37,8 @@ export interface DiscoveryDataSource {
   vote(discoveryId: string, vote: Vote, reason?: string): Promise<DiscoveryDetail>;
   report(target: ReportTarget, reason: ReportReason, details?: string): Promise<{ reportId: string }>;
   setFollowing(username: string, following: boolean): Promise<{ following: boolean }>;
+  /** Shares an analysed screenshot as a new discovery, awaiting community verification. */
+  submitDiscovery(input: DiscoverySubmission): Promise<{ id: string }>;
 }
 
 /** Thrown when the server refuses an action, with a message safe to show the user. */

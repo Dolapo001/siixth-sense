@@ -16,13 +16,20 @@ export function sampleViewerEnabled() {
 }
 
 /**
- * Who is signed in. Auth isn't decided yet (see docs/phase-1-assessment.md),
- * so there is no real session: every community action asks the user to sign
- * in, unless the sample viewer is switched on (see above).
+ * Who is signed in: the wallet session from /api/auth/session (Sign-In With
+ * Solana), or the opt-in development sample viewer. Null when signed out or
+ * when the session can't be read.
  */
 export async function getSession(): Promise<Session | null> {
   if (sampleViewerEnabled()) {
     return { user: SAMPLE_VIEWER };
   }
-  return null;
+  try {
+    const response = await fetch("/api/auth/session", { cache: "no-store", credentials: "same-origin" });
+    if (!response.ok) return null;
+    const { user } = (await response.json()) as { user: Contributor | null };
+    return user ? { user } : null;
+  } catch {
+    return null;
+  }
 }

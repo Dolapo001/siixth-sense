@@ -10,7 +10,7 @@
 
 import { getSampleWorld } from "@/features/world/data/mock-source";
 import { discoveryCategories } from "@/features/world/types";
-import type { LocationPrecision, VerificationStatus } from "@/types/intelligence";
+import type { VerificationStatus } from "@/types/intelligence";
 import type { AnalysisJob, Detection, LocationMatch } from "../types";
 import { UploadCancelledError, type AnalysisDataSource } from "./source";
 
@@ -37,14 +37,27 @@ function mulberry32(seed: number) {
 /** Every discovery in the sample world, so "related discovery" links resolve in development. */
 const sampleDiscoveries = [...getSampleWorld().locations.values()].flatMap((location) => location.discoveries);
 
-/** Ids match the World Explorer sample data, so "view on map" links work in development. */
-const sampleLocationId = (n: number) => `sample-${String((n % 64) + 1).padStart(2, "0")}`;
+/**
+ * Real places from the GTA VI community map (gtadb ids), so "View on map" and
+ * the result maps open something real in development. Which place a sample
+ * result "matches" is still random: the match itself is sample data.
+ */
+const samplePlaces = [
+  { id: "L1", name: "Vice Regal" },
+  { id: "L36", name: "Ocean View Hotel" },
+  { id: "L221", name: "Heath Tower" },
+  { id: "L163", name: "Evergreen Mall" },
+  { id: "L456", name: "Vice City Sign" },
+  { id: "L317", name: "Bocamar Bridge" },
+  { id: "L326", name: "Brian's Boat Works & Marina" },
+  { id: "L530", name: "Mount Kalaga" },
+];
+const samplePlace = (n: number) => samplePlaces[n % samplePlaces.length];
 
 function buildResults(fileName: string): Pick<AnalysisJob, "detections" | "locationMatches"> {
   const random = mulberry32(hash(fileName));
   const count = 1 + Math.floor(random() * 4);
   const verifications: VerificationStatus[] = ["ai_suggested", "ai_suggested", "awaiting_verification"];
-  const precisions: LocationPrecision[] = ["confirmed", "approximate", "region"];
 
   const detections: Detection[] = Array.from({ length: count }, (_, i) => {
     const category = discoveryCategories[Math.floor(random() * discoveryCategories.length)];
@@ -70,9 +83,8 @@ function buildResults(fileName: string): Pick<AnalysisJob, "detections" | "locat
         random() > 0.4
           ? [
               {
-                id: sampleLocationId(Math.floor(random() * 64)),
-                name: "Sample location",
-                precision: precisions[Math.floor(random() * precisions.length)],
+                ...samplePlace(Math.floor(random() * 64)),
+                precision: "approximate" as const,
               },
             ]
           : [],
@@ -80,17 +92,18 @@ function buildResults(fileName: string): Pick<AnalysisJob, "detections" | "locat
   });
 
   // About a third of sample results have no location match, as real ones often won't.
-  const locationMatches: LocationMatch[] =
-    random() > 0.33
-      ? [
-          {
-            locationId: sampleLocationId(Math.floor(random() * 64)),
-            name: "Sample location",
-            precision: precisions[Math.floor(random() * precisions.length)],
-            confidence: Math.round((0.3 + random() * 0.6) * 100) / 100,
-          },
-        ]
-      : [];
+  // Sometimes two candidates, as a real service may return several.
+  const matchCount = random() > 0.33 ? (random() > 0.6 ? 2 : 1) : 0;
+  const first = Math.floor(random() * 64);
+  const locationMatches: LocationMatch[] = Array.from({ length: matchCount }, (_, i) => {
+    const place = samplePlace(first + i * 3);
+    return {
+      locationId: place.id,
+      name: place.name,
+      precision: "approximate" as const,
+      confidence: Math.round((0.75 - i * 0.25 - random() * 0.2) * 100) / 100,
+    };
+  });
 
   return { detections, locationMatches };
 }

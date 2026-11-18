@@ -105,6 +105,8 @@ type CommunityState = {
 };
 
 const community = new Map<string, CommunityState>();
+/** Descriptions of discoveries shared from Analyze during this session. */
+const submittedNotes = new Map<string, string>();
 const following = new Set<string>();
 const reports: { id: string; target: ReportTarget; reason: ReportReason; details?: string }[] = [];
 let sequence = 0;
@@ -217,7 +219,9 @@ function detailFor(item: DiscoveryListItem, viewer: Contributor | null): Discove
   return {
     ...item,
     engagement: { ...item.engagement },
-    description: "Placeholder description for development. This is sample data, not a real discovery.",
+    description:
+      submittedNotes.get(item.id) ??
+      "Placeholder description for development. This is sample data, not a real discovery.",
     detections: Array.from({ length: 1 + (h % 3) }, (_, i) => ({
       id: `${item.id}-det${i + 1}`,
       label: `Sample ${i === 0 ? item.category : "entity"} ${i + 1}`,
@@ -365,6 +369,35 @@ export function createMockDiscoverySource(): DiscoveryDataSource {
       if (follow) following.add(username);
       else following.delete(username);
       return { following: follow };
+    },
+
+    async submitDiscovery(input) {
+      const viewer = await requireViewer();
+      await delay();
+      const id = nextId("shared");
+      const item: DiscoveryListItem = {
+        id,
+        title: input.title,
+        category: input.category,
+        // A new discovery always starts unverified; only reviewers can change that.
+        verification: "awaiting_verification",
+        submittedAt: new Date().toISOString(),
+        contributor: viewer,
+        location: input.location
+          ? {
+              locationId: input.location.id,
+              name: input.location.name,
+              regionId: null,
+              regionName: input.location.areas.at(-1) ?? null,
+              precision: "approximate",
+            }
+          : null,
+        screenshot: null,
+        engagement: { comments: 0, confirmations: 0 },
+      };
+      sampleItems.unshift(item);
+      submittedNotes.set(id, input.note || "Shared from Analyze for the community to identify.");
+      return { id };
     },
   };
 }

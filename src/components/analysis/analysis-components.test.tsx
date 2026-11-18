@@ -1,12 +1,22 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
+import { getLocationDetail } from "@/features/world/data/gtadb.server";
 import type { Detection } from "@/features/image-analysis/types";
 import { AnalysisProgress } from "./analysis-progress";
 import { DetectionList } from "./detection-list";
 import { LocationMatches } from "./location-matches";
 import { ScreenshotStage } from "./screenshot-stage";
 import { UploadDropzone } from "./upload-dropzone";
+
+// Location lookups read the real GTA VI snapshot, without going through HTTP.
+vi.mock("@/features/world/data/source", () => ({
+  getWorldDataSource: async () => ({
+    kind: "snapshot",
+    getLocation: async (id: string) => getLocationDetail(id),
+  }),
+}));
 
 const constraints = { maxBytes: 20 * 1024 * 1024, acceptedTypes: ["image/png", "image/jpeg", "image/webp"] };
 
@@ -140,14 +150,38 @@ describe("LocationMatches", () => {
     expect(screen.getByText("No location match")).toBeInTheDocument();
   });
 
-  it("links a match to the map", () => {
-    render(
+  const withQuery = (ui: React.ReactElement) =>
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
+
+  it("shows a match on the GTA map, with its areas and a link into the World Explorer", async () => {
+    withQuery(
+      <LocationMatches matches={[{ locationId: "L1", name: "Vice Regal", precision: "approximate", confidence: 0.4 }]} />,
+    );
+    expect(screen.getByRole("link", { name: "View on map" })).toHaveAttribute("href", "/world/L1");
+    expect(screen.getByText("Low confidence")).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Map around Vice Regal" })).toBeInTheDocument();
+    expect(screen.getByText("Washington Beach · Vice Beach")).toBeInTheDocument();
+  });
+
+  it("says when the matched place isn't on the World map", async () => {
+    withQuery(
+      <LocationMatches matches={[{ locationId: "nope", name: "Somewhere", precision: "region", confidence: 0.4 }]} />,
+    );
+    expect(await screen.findByText(/isn't on the World map yet/)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Map around/ })).not.toBeInTheDocument();
+  });
+
+  it("numbers candidates when there are several", () => {
+    withQuery(
       <LocationMatches
-        matches={[{ locationId: "sample-02", name: "Sample location", precision: "region", confidence: 0.4 }]}
+        matches={[
+          { locationId: "L1", name: "Vice Regal", precision: "approximate", confidence: 0.7 },
+          { locationId: "L36", name: "Ocean View Hotel", precision: "approximate", confidence: 0.4 },
+        ]}
       />,
     );
-    expect(screen.getByRole("link", { name: "View on map" })).toHaveAttribute("href", "/world/sample-02");
-    expect(screen.getByText("Low confidence")).toBeInTheDocument();
+    expect(screen.getByText("Candidate 1")).toBeInTheDocument();
+    expect(screen.getByText("Candidate 2")).toBeInTheDocument();
   });
 });
 

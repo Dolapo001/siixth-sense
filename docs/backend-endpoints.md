@@ -198,7 +198,21 @@ type LocationMatch = {
 
 The frontend polls every `pollIntervalMs`. If the backend offers push (SSE or WebSocket), tell us and we'll switch.
 
-**Also needed (no UI yet):** a way to turn a completed analysis into a public discovery, e.g. `POST /discoveries { analysisId, title?, description? }`. Without it, discoveries can only come from the backend side.
+**Share with the community** (UI ready: Analyze → "Share with the community"): `POST /discoveries`, signed in.
+
+```ts
+// request
+{
+  analysisJobId: string;          // the server already has the screenshot from the analysis upload
+  title: string;                  // 3–100 chars
+  category: DiscoveryCategory;
+  note?: string;                  // ≤ 500 chars: what they think it is
+  location: { id: string; name: string; areas: string[] } | null;  // a candidate from locationMatches, or null
+}
+// response → 201
+{ id: string }                    // the new discovery, verification "awaiting_verification"
+```
+Refusals (not signed in, rate-limited, duplicate) need a user-facing `message` (see §1).
 
 ---
 
@@ -538,7 +552,7 @@ These need a role check, and `/me` should expose the role so the frontend can sh
 | 6 | GET | `/analyses/constraints` | Analysis | — | UI ready |
 | 7 | POST | `/analyses` | Analysis | ? | UI ready |
 | 8 | GET | `/analyses/{jobId}` | Analysis | ? | UI ready |
-| 9 | POST | `/discoveries` | Analysis → Discovery | ✓ | Needed, no UI yet |
+| 9 | POST | `/discoveries` | Analysis → Discovery | ✓ | UI ready |
 | 10 | GET | `/world/bounds` | World | — | UI ready |
 | 11 | GET | `/world/regions` | World | — | UI ready |
 | 12 | GET | `/world/markers` | World | — | UI ready |

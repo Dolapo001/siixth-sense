@@ -75,6 +75,7 @@ const fakeSource: DiscoveryDataSource = {
   vote: vi.fn(),
   report: vi.fn(),
   setFollowing: vi.fn(),
+  submitDiscovery: vi.fn(),
 };
 vi.mock("./data/source", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./data/source")>()),

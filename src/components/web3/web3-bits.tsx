@@ -5,9 +5,8 @@ import { Check, Copy, ExternalLink, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utilities/cn";
 import { announce } from "@/lib/announce";
 
-export function shortAddress(address: string) {
-  return address.length > 12 ? `${address.slice(0, 4)}…${address.slice(-4)}` : address;
-}
+export { shortAddress } from "@/lib/utilities/solana";
+import { shortAddress } from "@/lib/utilities/solana";
 
 /** Address or signature in monospace, with a copy button. Full value in the title and for screen readers. */
 export function CopyableValue({ value, label, short = true }: { value: string; label: string; short?: boolean }) {

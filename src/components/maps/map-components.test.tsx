@@ -1,3 +1,4 @@
+import { LayerFilter } from "./layer-filter";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -152,5 +153,17 @@ describe("LocationDetails", () => {
     );
     expect(screen.getByText("No coordinate")).toBeInTheDocument();
     expect(screen.getByText("Area unknown")).toBeInTheDocument();
+  });
+});
+
+describe("LayerFilter", () => {
+  it("clears every layer with None and turns them all on with All", async () => {
+    const onChange = vi.fn();
+    const counts = { landmarks: 3, nature: 2 };
+    render(<LayerFilter selected={new Set(["landmarks"] as const)} onChange={onChange} counts={counts} />);
+    await userEvent.click(screen.getByRole("button", { name: "None" }));
+    expect([...onChange.mock.calls[0][0]]).toEqual([]);
+    await userEvent.click(screen.getByRole("button", { name: "All" }));
+    expect([...onChange.mock.calls[1][0]].sort()).toEqual(["landmarks", "nature"]);
   });
 });

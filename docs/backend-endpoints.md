@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-17
 **Audience:** backend team
-**Status:** Proposal. Nothing here is agreed yet.
+**Status:** Answered and implemented (2026-11-18). The backend's reply is its `docs/frontend-requirements-response.md`; the frontend's API sources are `src/features/*/data/api-source.ts`. Kept for history.
 
 This document lists what the frontend needs from the Sixth Sense API. It is derived from the typed data-source interfaces the frontend already uses (`src/features/*/data/source.ts`) and the domain types next to them (`src/features/*/types.ts`). Today those interfaces are backed by labelled sample data. In Phase 5 each one gets an API-backed implementation.
 

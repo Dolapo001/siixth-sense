@@ -107,10 +107,16 @@ Decisions: gtadb as the map foundation; tiles self-hosted, generated at build ti
 
 **Profiles: done.** "Areas explored" pinned on the Leonida map, and discoveries by category (new `areas` / `byCategory` profile fields).
 
-**Auth: done.** Sign-In With Solana: signed challenge → ed25519 verification → HTTP-only session cookie, with CSRF origin checks. Needs `AUTH_SECRET` in production.
+**Auth: done (backend).** Wallet sign-in only, through the backend: `auth/wallet/challenge/` → wallet signs → `auth/wallet/login/` (a new wallet must accept the terms). The backend's JWTs live in HTTP-only cookies set by this app; `/api/backend/*` attaches and refreshes them, with CSRF origin checks. The interim in-app session (and `AUTH_SECRET`) is gone.
 
 **Phase 7 — visual: done.** Shared glass for floating map UI (`glass-control`) and panels and dialogs (`glass-sheet`), card hover lift, and selective cyan.
 
 **Phase 8 — production: done.** World pages are indexable and the sitemap lists every place. Route bundles were checked (Settings went from 171 KB to 41 KB). Node engine pinned; deploy variables are in the README.
 
-**Still blocked on the backend:** real discoveries, community data, entity knowledge (vehicles, characters, wildlife, collectibles), real screenshot analysis, and entity search. Entities (vehicles, characters, wildlife, collectibles), discoveries, community data and analysis remain blocked on the Sixth Sense backend.
+**Backend connected (2026-11-18).** The backend (github.com/Adefolabi/sceneid, `backend/`) now exists and every data source has a live implementation (`src/features/*/data/api-source.ts`), used whenever `NEXT_PUBLIC_API_BASE_URL` is set. Decision: gtadb stays the map foundation even though the backend's own docs declined to import it.
+- Geography is still the gtadb snapshot; the backend's discoveries are drawn on top as a "Discoveries" layer.
+- The backend has no gtadb places yet, so a discovery shared at a map place carries a `place:<gtadb id>` tag, and the map reads it back from the 100 most recent discoveries. The proper fix is importing the gtadb landmarks into the backend as locations (with their gtadb ids), after which discoveries get real location links and `world/markers/` returns them.
+- Analysis needs `ANTHROPIC_API_KEY` on the backend; without it every job fails with that message.
+- Usernames are assigned by the backend (`sol_…`) and can't be renamed yet; preset avatars travel in `avatar_url`.
+
+**Decision (2026-11-18):** the backend audit (`docs/backend-audit.md`) found that the backend refuses gtadb data as possibly leak-derived. The owner chose to keep gtadb on the frontend as a **clearly labelled community layer**, separate from the backend's verified data. Labels and source notes now say so, including gtadb's own caveat about leaked material.

@@ -69,7 +69,7 @@ describe("MapPreview (real GTA VI data)", () => {
 
   it("credits the community map and says it's unofficial", () => {
     preview();
-    expect(screen.getByText(/Unofficial community map/)).toBeInTheDocument();
+    expect(screen.getByText(/Community layer/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "gtadb.org" })).toHaveAttribute("href", "https://map.gtadb.org");
   });
 

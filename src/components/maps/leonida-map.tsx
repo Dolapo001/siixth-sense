@@ -30,11 +30,11 @@ export function LeonidaMap({ children, className }: { children?: React.ReactNode
       <div aria-hidden className="absolute inset-0 bg-midnight/25" />
       {children}
       <p className="meta absolute top-2 right-2 rounded-sm bg-midnight/85 px-1.5 py-0.5 text-[0.6875rem] text-fg/85">
-        Unofficial community map ·{" "}
+        Community layer ·{" "}
         <a href="https://map.gtadb.org" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
           gtadb.org
         </a>{" "}
-        · CC BY 4.0
+        · CC BY 4.0 · unofficial
       </p>
     </div>
   );

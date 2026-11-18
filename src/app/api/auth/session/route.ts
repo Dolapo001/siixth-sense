@@ -1,12 +1,16 @@
-import { cookies } from "next/headers";
-import { contributorFor, readToken } from "@/features/authentication/server/auth.server";
-import { SESSION_COOKIE } from "@/features/authentication/siws";
+import { sessionUser } from "@/features/authentication/server/session.server";
+import { liveApiEnabled } from "@/lib/api/config";
 
 /** Who is signed in: `{ user }`, or `{ user: null }`. Never cached. */
 export async function GET() {
-  const session = readToken<{ sub: string; exp: number }>((await cookies()).get(SESSION_COOKIE)?.value);
-  return Response.json(
-    { user: session ? contributorFor(session.sub) : null },
-    { headers: { "Cache-Control": "no-store" } },
-  );
+  let user = null;
+  if (liveApiEnabled()) {
+    try {
+      user = await sessionUser();
+    } catch (error) {
+      // Backend down: show the signed-out experience rather than an error everywhere.
+      console.error("Couldn't read the session from the backend", error);
+    }
+  }
+  return Response.json({ user }, { headers: { "Cache-Control": "no-store" } });
 }

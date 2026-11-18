@@ -6,6 +6,13 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 3000
+    },
+    {
+      "name": "sixth-sense-backend",
+      "runtimeExecutable": "/home/adedolapo/Downloads/sceneid-backend/backend/.venv/bin/python",
+      "runtimeArgs": ["/home/adedolapo/Downloads/sceneid-backend/backend/manage.py", "runserver", "127.0.0.1:8000"],
+      "port": 8000,
+      "url": "http://127.0.0.1:8000"
     }
   ]
 }

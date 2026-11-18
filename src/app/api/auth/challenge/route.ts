@@ -1,37 +1,33 @@
-import { cookies } from "next/headers";
 import { crossSiteRefusal, isSameOrigin } from "@/features/authentication/server/same-origin.server";
-import { cookieOptions, isSolanaAddress, newNonce, signToken } from "@/features/authentication/server/auth.server";
-import { CHALLENGE_COOKIE, CHALLENGE_TTL_SECONDS, signInMessage } from "@/features/authentication/siws";
-
-const refuse = (message: string, status = 400) => Response.json({ error: { code: "bad_request", message } }, { status });
+import { isSolanaAddress } from "@/features/authentication/server/wallet.server";
+import { backendRefusal, forwardBackendError } from "@/features/authentication/server/auth-responses.server";
+import { BackendUnavailableError, backendUrl } from "@/lib/api/backend.server";
+import { readEnvelope } from "@/lib/api/client";
 
 /**
- * Step 1 of wallet sign-in: a one-time message for the wallet to sign. The
- * exact message travels in a signed, HTTP-only cookie, so step 2 checks the
- * signature against what this server issued, not what the browser sends back.
+ * Step 1 of wallet sign-in: the backend issues a one-time message for the
+ * wallet to sign. The backend keeps the message itself, so step 2 only sends
+ * back the nonce and the signature.
  */
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return crossSiteRefusal();
   const body = (await request.json().catch(() => null)) as { address?: unknown } | null;
-  if (!isSolanaAddress(body?.address)) return refuse("That isn't a valid Solana wallet address.");
+  if (!isSolanaAddress(body?.address)) return backendRefusal(400, "That isn't a valid Solana wallet address.");
 
-  const url = new URL(request.url);
-  const issued = new Date();
-  const expires = new Date(issued.getTime() + CHALLENGE_TTL_SECONDS * 1000);
-  const message = signInMessage({
-    domain: url.host,
-    uri: url.origin,
-    address: body.address,
-    nonce: newNonce(),
-    issuedAt: issued.toISOString(),
-    expirationTime: expires.toISOString(),
-    chainId: process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet",
-  });
-
-  (await cookies()).set(
-    CHALLENGE_COOKIE,
-    signToken({ address: body.address, message, exp: Math.floor(expires.getTime() / 1000) }),
-    cookieOptions(CHALLENGE_TTL_SECONDS, "/api/auth"),
-  );
-  return Response.json({ message }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const response = await fetch(backendUrl("auth/wallet/challenge/"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: body.address }),
+      cache: "no-store",
+    });
+    const challenge = await readEnvelope<{ nonce: string; message: string; expires_at: string }>(response);
+    return Response.json(
+      { nonce: challenge.nonce, message: challenge.message, expiresAt: challenge.expires_at },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    if (error instanceof BackendUnavailableError) return backendRefusal(503, "Sign-in isn't available yet.");
+    return forwardBackendError(error);
+  }
 }

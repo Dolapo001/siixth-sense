@@ -1,19 +1,23 @@
 // @vitest-environment node
-import { generateKeyPairSync, sign } from "node:crypto";
+import { generateKeyPairSync } from "node:crypto";
 import bs58 from "bs58";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/api/backend.server";
 import { safeNext } from "../wallet-sign-in";
-import { CHALLENGE_COOKIE, SESSION_COOKIE } from "../siws";
-import { isSolanaAddress, readToken, signToken, verifyWalletSignature } from "./auth.server";
+import { TERMS_REQUIRED } from "../siws";
+import { isSolanaAddress } from "./wallet.server";
 
-/** A throwaway ed25519 wallet: its base58 address and a signer. */
-function wallet() {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const raw = Buffer.from(publicKey.export({ format: "jwk" }).x!, "base64url");
-  return {
-    address: bs58.encode(raw),
-    sign: (message: string) => bs58.encode(sign(null, Buffer.from(message, "utf8"), privateKey)),
-  };
+const API = "http://backend.test/api/v1";
+
+function address() {
+  const { publicKey } = generateKeyPairSync("ed25519");
+  return bs58.encode(Buffer.from(publicKey.export({ format: "jwk" }).x!, "base64url"));
+}
+
+/** An unsigned JWT-shaped token expiring `inSeconds` from now (the app reads exp, the backend verifies). */
+function jwt(name: string, inSeconds: number) {
+  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${part({ alg: "none" })}.${part({ exp: Math.floor(Date.now() / 1000) + inSeconds, name })}.sig`;
 }
 
 // A minimal stand-in for next/headers cookies(), shared across "requests".
@@ -26,98 +30,200 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
+const envelope = (data: unknown, status = 200) => Response.json({ success: true, message: "OK", data }, { status });
+const failure = (message: string, status: number, code = "conflict") =>
+  Response.json({ success: false, message, code, errors: {} }, { status });
+
+/** Fake backend: routes by path; records every call. */
+type Call = { path: string; method: string; auth: string | null; body: unknown };
+let calls: Call[] = [];
+let handler: (call: Call) => Response;
+
+beforeEach(() => {
+  jar.clear();
+  calls = [];
+  vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", API);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      const headers = new Headers(init.headers);
+      const raw = init.body;
+      const text = typeof raw === "string" ? raw : raw instanceof ArrayBuffer ? new TextDecoder().decode(raw) : null;
+      const call = {
+        path: url.replace(API, ""),
+        method: init.method ?? "GET",
+        auth: headers.get("authorization"),
+        body: text ? JSON.parse(text) : null,
+      };
+      calls.push(call);
+      return handler(call);
+    }),
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
 const post = (body: unknown, origin = "http://localhost:3000") =>
   new Request("http://localhost:3000/api/auth/x", { method: "POST", body: JSON.stringify(body), headers: { origin } });
 
-beforeEach(() => jar.clear());
+const me = { username: "sol_abc", email: null, role: "player", profile: { display_name: "", avatar_url: "" } };
 
-describe("signed tokens", () => {
-  it("round-trips, and rejects tampering and expiry", () => {
-    const exp = Math.floor(Date.now() / 1000) + 60;
-    const token = signToken({ sub: "abc", exp });
-    expect(readToken<{ sub: string; exp: number }>(token)?.sub).toBe("abc");
-    const [body, mac] = token.split(".");
-    const forged = Buffer.from(JSON.stringify({ sub: "attacker", exp })).toString("base64url");
-    expect(readToken(`${forged}.${mac}`)).toBeNull();
-    expect(readToken(`${body}.${mac.slice(0, -2)}xx`)).toBeNull();
-    expect(readToken(signToken({ sub: "abc", exp: Math.floor(Date.now() / 1000) - 1 }))).toBeNull();
-    expect(readToken(undefined)).toBeNull();
-  });
+const routes = async () => ({
+  challenge: (await import("@/app/api/auth/challenge/route")).POST,
+  verify: (await import("@/app/api/auth/verify/route")).POST,
+  session: (await import("@/app/api/auth/session/route")).GET,
+  logout: (await import("@/app/api/auth/logout/route")).POST,
 });
 
-describe("wallet signatures", () => {
-  it("accepts the wallet's own signature and nothing else", () => {
-    const alice = wallet();
-    const bob = wallet();
-    expect(verifyWalletSignature(alice.address, "hello", alice.sign("hello"))).toBe(true);
-    expect(verifyWalletSignature(alice.address, "hello!", alice.sign("hello"))).toBe(false);
-    expect(verifyWalletSignature(alice.address, "hello", bob.sign("hello"))).toBe(false);
-    expect(verifyWalletSignature(alice.address, "hello", "not-a-signature")).toBe(false);
-  });
-
-  it("validates addresses", () => {
-    expect(isSolanaAddress(wallet().address)).toBe(true);
+describe("isSolanaAddress", () => {
+  it("validates addresses before bothering the backend", () => {
+    expect(isSolanaAddress(address())).toBe(true);
     expect(isSolanaAddress("hello")).toBe(false);
     expect(isSolanaAddress(42)).toBe(false);
   });
 });
 
-describe("sign-in flow (challenge → verify → session)", () => {
-  const routes = async () => ({
-    challenge: (await import("@/app/api/auth/challenge/route")).POST,
-    verify: (await import("@/app/api/auth/verify/route")).POST,
-    session: (await import("@/app/api/auth/session/route")).GET,
-    logout: (await import("@/app/api/auth/logout/route")).POST,
-  });
-
-  it("signs a wallet in with its signature of the issued message, then out", async () => {
+describe("wallet sign-in through the backend", () => {
+  it("gets the challenge from the backend, keeps tokens in cookies, and signs out", async () => {
     const { challenge, verify, session, logout } = await routes();
-    const alice = wallet();
-    const { message } = await (await challenge(post({ address: alice.address }))).json();
-    expect(message).toContain(alice.address);
-    expect(message).toContain("won't send a transaction");
-    expect(message).toContain("localhost:3000 wants you to sign in");
+    const wallet = address();
+    const access = jwt("access", 1800);
+    const refresh = jwt("refresh", 604800);
+    handler = ({ path }) => {
+      if (path === "/auth/wallet/challenge/") return envelope({ nonce: "n1", message: `Sign in\n${wallet}`, expires_at: "x" }, 201);
+      if (path === "/auth/wallet/login/") return envelope({ access, refresh, new_account: false, username: "sol_abc" });
+      if (path === "/auth/me/") return envelope(me);
+      if (path === "/auth/logout/") return new Response(null, { status: 204 });
+      return failure("Not found.", 404, "not_found");
+    };
 
-    const response = await verify(post({ address: alice.address, signature: alice.sign(message) }));
+    const issued = await (await challenge(post({ address: wallet }))).json();
+    expect(issued).toMatchObject({ nonce: "n1", message: `Sign in\n${wallet}` });
+    expect(calls[0]).toMatchObject({ path: "/auth/wallet/challenge/", body: { address: wallet } });
+
+    const response = await verify(post({ nonce: "n1", signature: "sig", acceptTerms: false }));
     expect(response.status).toBe(200);
-    expect(jar.has(SESSION_COOKIE)).toBe(true);
-    expect(jar.has(CHALLENGE_COOKIE)).toBe(false);
-    expect((await (await session()).json()).user.username).toBe(alice.address);
+    expect(calls.at(-2)).toMatchObject({ path: "/auth/wallet/login/", body: { nonce: "n1", signature: "sig", accept_terms: false } });
+    expect(jar.get(ACCESS_COOKIE)).toBe(access);
+    expect(jar.get(REFRESH_COOKIE)).toBe(refresh);
+    // Tokens never reach the browser in a response body.
+    const body = await response.json();
+    expect(JSON.stringify(body)).not.toContain(access);
+    expect(body.user).toEqual({ username: "sol_abc", displayName: "sol_abc", avatarId: null });
 
-    await logout(post({}));
-    expect((await (await session()).json()).user).toBeNull();
+    expect((await (await session()).json()).user.username).toBe("sol_abc");
+    expect(calls.at(-1)?.auth).toBe(`Bearer ${access}`);
+
+    expect((await logout(post({}))).status).toBe(204);
+    expect(calls.at(-1)).toMatchObject({ path: "/auth/logout/", body: { refresh } });
+    expect(jar.size).toBe(0);
   });
 
-  it("refuses a signature by another wallet, a different message, or a replayed challenge", async () => {
-    const { challenge, verify } = await routes();
-    const alice = wallet();
-    const mallory = wallet();
+  it("asks for the terms when the wallet has no account yet", async () => {
+    const { verify } = await routes();
+    handler = () => failure("No account for this wallet yet. Accept the terms to create one, then sign in again.", 409);
+    const response = await verify(post({ nonce: "n1", signature: "sig" }));
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe(TERMS_REQUIRED);
+    expect(jar.size).toBe(0);
+  });
 
-    let { message } = await (await challenge(post({ address: alice.address }))).json();
-    expect((await verify(post({ address: alice.address, signature: mallory.sign(message) }))).status).toBe(401);
+  it("passes on the backend's reason for a bad signature", async () => {
+    const { verify } = await routes();
+    handler = () => failure("Signature verification failed.", 400, "validation_error");
+    const response = await verify(post({ nonce: "n1", signature: "sig" }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.message).toBe("Signature verification failed.");
+  });
 
-    ({ message } = await (await challenge(post({ address: alice.address }))).json());
-    expect((await verify(post({ address: alice.address, signature: alice.sign(`${message} `) }))).status).toBe(401);
+  it("refreshes an expired access token, rotating both cookies", async () => {
+    const { session } = await routes();
+    const fresh = jwt("fresh", 1800);
+    const rotated = jwt("rotated", 604800);
+    jar.set(ACCESS_COOKIE, jwt("old", -10));
+    jar.set(REFRESH_COOKIE, jwt("refresh", 604800));
+    handler = ({ path }) =>
+      path === "/auth/refresh/" ? envelope({ access: fresh, refresh: rotated }) : envelope(me);
+    expect((await (await session()).json()).user.username).toBe("sol_abc");
+    expect(calls.map((c) => c.path)).toEqual(["/auth/refresh/", "/auth/me/"]);
+    expect(calls[1].auth).toBe(`Bearer ${fresh}`);
+    expect(jar.get(REFRESH_COOKIE)).toBe(rotated);
+  });
 
-    ({ message } = await (await challenge(post({ address: alice.address }))).json());
-    const signature = alice.sign(message);
-    expect((await verify(post({ address: alice.address, signature }))).status).toBe(200);
-    // The challenge is single-use.
-    expect((await verify(post({ address: alice.address, signature }))).status).toBe(401);
-    expect(jar.has(SESSION_COOKIE)).toBe(true);
+  it("signs out when the refresh token is no longer accepted", async () => {
+    const { session } = await routes();
+    jar.set(REFRESH_COOKIE, jwt("revoked", 604800));
+    handler = ({ path }) =>
+      path === "/auth/refresh/" ? failure("Token is blacklisted", 401, "not_authenticated") : failure("No credentials.", 401, "not_authenticated");
+    expect((await (await session()).json()).user).toBeNull();
+    expect(jar.size).toBe(0);
   });
 
   it("refuses requests from other sites", async () => {
     const { challenge, verify, logout } = await routes();
-    const alice = wallet();
-    expect((await challenge(post({ address: alice.address }, "https://evil.example"))).status).toBe(403);
-    expect((await verify(post({ address: alice.address, signature: "x" }, "https://evil.example"))).status).toBe(403);
+    expect((await challenge(post({ address: address() }, "https://evil.example"))).status).toBe(403);
+    expect((await verify(post({ nonce: "n", signature: "x" }, "https://evil.example"))).status).toBe(403);
     expect((await logout(post({}, "https://evil.example"))).status).toBe(403);
+    expect(calls).toHaveLength(0);
   });
 
   it("refuses an invalid address up front", async () => {
     const { challenge } = await routes();
     expect((await challenge(post({ address: "nope" }))).status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("backend proxy", () => {
+  const proxy = async (path: string[], init: RequestInit = {}) => {
+    const { GET, POST } = await import("@/app/api/backend/[...path]/route");
+    const handle = (init.method ?? "GET") === "GET" ? GET : POST;
+    const request = new Request(`http://localhost:3000/api/backend/${path.join("/")}?page=2`, init);
+    return handle(request, { params: Promise.resolve({ path }) });
+  };
+
+  it("adds the player's token and the backend's trailing slash", async () => {
+    const access = jwt("access", 1800);
+    jar.set(ACCESS_COOKIE, access);
+    handler = () => envelope({ count: 0, results: [] });
+    const response = await proxy(["discoveries"]);
+    expect(response.status).toBe(200);
+    expect(calls[0]).toMatchObject({ path: "/discoveries/?page=2", auth: `Bearer ${access}` });
+  });
+
+  it("never hands out tokens: the token-issuing auth routes aren't reachable", async () => {
+    for (const path of [["auth", "login"], ["auth", "refresh"], ["auth", "wallet", "login"], ["auth", ".."]]) {
+      expect((await proxy(path, { method: "POST", headers: { origin: "http://localhost:3000" } })).status).toBe(404);
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it("refuses cross-site writes", async () => {
+    const response = await proxy(["discoveries"], { method: "POST", body: "{}", headers: { origin: "https://evil.example" } });
+    expect(response.status).toBe(403);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("retries once with a fresh token when the backend rejects the current one", async () => {
+    jar.set(ACCESS_COOKIE, jwt("revoked-but-unexpired", 1800));
+    // A refresh token of its own: refreshes of one token are shared for a few seconds.
+    jar.set(REFRESH_COOKIE, jwt("refresh-for-retry", 604800));
+    const fresh = jwt("fresh", 1800);
+    handler = ({ path, auth }) => {
+      if (path === "/auth/refresh/") return envelope({ access: fresh, refresh: jwt("rotated", 604800) });
+      return auth === `Bearer ${fresh}` ? envelope({ ok: true }) : failure("Token invalid.", 401, "not_authenticated");
+    };
+    const response = await proxy(["discoveries", "abc", "comments"], {
+      method: "POST",
+      body: JSON.stringify({ body: "Nice" }),
+      headers: { origin: "http://localhost:3000", "content-type": "application/json" },
+    });
+    expect(response.status).toBe(200);
+    expect(calls.map((c) => c.path)).toEqual(["/discoveries/abc/comments/?page=2", "/auth/refresh/", "/discoveries/abc/comments/?page=2"]);
+    expect(calls[2].body).toEqual({ body: "Nice" });
   });
 });
 

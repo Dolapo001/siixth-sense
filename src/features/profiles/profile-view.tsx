@@ -73,11 +73,13 @@ function Loaded({ source, username }: { source: ProfileDataSource; username: str
   return <ProfileContent profile={profile.data} sample={source.kind === "sample"} />;
 }
 
-function Stat({ label, value, emphasis }: { label: string; value: number; emphasis?: boolean }) {
+function Stat({ label, value, emphasis }: { label: string; value: number | null; emphasis?: boolean }) {
   return (
     <div className={cn("flex flex-col gap-1 rounded-md border p-4", emphasis ? "border-accent/40" : "border-border")}>
       <dt className="text-meta text-muted">{label}</dt>
-      <dd className={cn("text-title font-semibold", emphasis && "text-accent")}>{value.toLocaleString("en-US")}</dd>
+      <dd className={cn("text-title font-semibold", emphasis && "text-accent")}>
+        {value === null ? <span className="text-body font-normal text-muted">Private</span> : value.toLocaleString("en-US")}
+      </dd>
     </div>
   );
 }
@@ -140,10 +142,12 @@ function ProfileContent({ profile, sample }: { profile: Profile; sample: boolean
           <Stat label="Submitted" value={profile.stats.submitted} />
           <Stat label="Reviews" value={profile.stats.reviews} />
           <Stat label="Comments" value={profile.stats.comments} />
-          <Stat label="Areas explored" value={profile.areas.length} />
+          <Stat label="Areas explored" value={profile.areas.length || profile.regionsExplored} />
         </dl>
         <p className="text-small text-muted">
-          {profile.stats.submitted === 0
+          {profile.stats.submitted === null || profile.stats.verified === null
+            ? "This player keeps some of their activity private."
+            : profile.stats.submitted === 0
             ? "No discoveries submitted yet."
             : `${profile.stats.verified} of ${profile.stats.submitted} submitted ${profile.stats.submitted === 1 ? "discovery has" : "discoveries have"} been verified by the community.`}
         </p>

@@ -1,3 +1,4 @@
+import { liveApiEnabled } from "@/lib/api/config";
 import { devMocksEnabled } from "@/lib/api/dev-mocks";
 import type { UploadConstraints } from "../validation";
 import type { AnalysisJob } from "../types";
@@ -30,7 +31,10 @@ export class UploadCancelledError extends Error {
 }
 
 export async function getAnalysisDataSource(): Promise<AnalysisDataSource | null> {
-  // Phase 5: return the API-backed source when the backend exposes analysis endpoints.
+  if (liveApiEnabled()) {
+    const { createApiAnalysisSource } = await import("./api-source");
+    return createApiAnalysisSource();
+  }
   if (devMocksEnabled()) {
     const { createMockAnalysisSource } = await import("./mock-source");
     return createMockAnalysisSource();

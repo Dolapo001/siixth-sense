@@ -20,7 +20,9 @@ pnpm install
 pnpm dev
 ```
 
-Open <http://localhost:3000>. In development, screens without a backend show clearly labelled sample data. You browse signed out by default; set `NEXT_PUBLIC_DEV_SAMPLE_VIEWER=true` in `.env.local` to sign in as a sample user and try community actions.
+Open <http://localhost:3000>. Without a backend, development shows clearly labelled sample data. You browse signed out by default; set `NEXT_PUBLIC_DEV_SAMPLE_VIEWER=true` in `.env.local` to sign in as a sample user and try community actions.
+
+To use the real backend ([sceneid backend](https://github.com/Adefolabi/sceneid/tree/main/backend)), run it locally and set `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1` in `.env.local`. Players then sign in with their Solana wallet through the backend; its tokens stay in HTTP-only cookies and every API call goes through `/api/backend/*`.
 
 Copy `.env.example` to `.env.local` to configure the API base URL, site URL and OpenAPI document.
 
@@ -43,12 +45,12 @@ The default build (`pnpm build`) syncs the GTA map tiles from GitHub, so the bui
 | Variable | Needed | What it's for |
 |---|---|---|
 | `NEXT_PUBLIC_SITE_URL` | Yes | Canonical URLs, social images, sitemap. On Vercel it falls back to the deployment domain. |
-| `AUTH_SECRET` | Yes | Signs session cookies for wallet sign-in. 32+ characters; `openssl rand -base64 32`. Sign-in refuses to work without it in production. |
-| `NEXT_PUBLIC_SOLANA_CLUSTER` | No | Chain ID shown in the sign-in message (`devnet` default). |
-| `NEXT_PUBLIC_API_BASE_URL` | Later | The Sixth Sense backend. Also makes discoveries, community and leaderboard indexable. |
+| `NEXT_PUBLIC_API_BASE_URL` | Yes | The Sixth Sense backend, including `/api/v1`. Live data and wallet sign-in go through it (via this app's `/api/backend` proxy). Also makes discoveries, community and leaderboard indexable. |
 | `SIXTH_SENSE_OPENAPI_URL` | Later | Backend OpenAPI document for the Developer Portal. |
 | `NEXT_PUBLIC_MAP_TILES_URL` | No | Serve map tiles from a CDN instead of the build output. |
 | `NEXT_PUBLIC_ENABLE_DEV_MOCKS` | Never in production | Labelled sample data for development and previews. |
+
+Screenshot uploads pass through the `/api/backend` proxy. Vercel Functions accept request bodies up to 4.5 MB, below the backend's 10 MB limit, so larger screenshots fail on Vercel until uploads go straight to storage (the backend's presigned uploads aren't built yet). The backend's own `ALLOWED_HOSTS` must include its public host; CORS isn't needed, since only this app's server calls it.
 
 ## Stack
 
@@ -75,7 +77,7 @@ The logo, colours, type and motion rules are in [`docs/brand-guidelines.md`](doc
 ## Documentation
 
 - [`SIXTH_SENSE_FRONTEND_PLAN.md`](SIXTH_SENSE_FRONTEND_PLAN.md): phased plan and progress
-- [`docs/backend-endpoints.md`](docs/backend-endpoints.md): API the frontend needs from the backend
+- [`docs/backend-endpoints.md`](docs/backend-endpoints.md): API the frontend asked the backend for (the backend's answer is its `docs/frontend-requirements-response.md`)
 - [`docs/phase-1-assessment.md`](docs/phase-1-assessment.md): repository assessment and open questions
 - [`docs/brand-guidelines.md`](docs/brand-guidelines.md): brand identity
 - [`docs/landing-assets.md`](docs/landing-assets.md): landing artwork rules

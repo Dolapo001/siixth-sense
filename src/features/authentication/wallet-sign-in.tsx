@@ -14,6 +14,7 @@ import { isUserRejection } from "@/features/web3/wallet-controls";
 import { announce } from "@/lib/announce";
 import { shortAddress } from "@/lib/utilities/solana";
 import { useSession } from "./hooks";
+import { TERMS_REQUIRED } from "./siws";
 
 type Step = "idle" | "requesting" | "signing" | "verifying";
 
@@ -28,6 +29,15 @@ export function safeNext(next: string | null) {
   return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/auth") ? next : "/world";
 }
 
+class SignInError extends Error {
+  constructor(
+    message: string,
+    readonly code: string | null,
+  ) {
+    super(message);
+  }
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
@@ -35,7 +45,9 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.error?.message ?? "Sign-in didn't go through. Try again.");
+  if (!response.ok) {
+    throw new SignInError(data?.error?.message ?? "Sign-in didn't go through. Try again.", data?.error?.code ?? null);
+  }
   return data as T;
 }
 
@@ -48,26 +60,39 @@ export function WalletSignIn({ mode }: { mode: "sign-in" | "create" }) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Creating an account means accepting the terms; signing in to an existing one doesn't.
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [termsNeeded, setTermsNeeded] = useState(mode === "create");
 
   const title = mode === "create" ? "Create your account" : "Sign in";
 
   const signIn = async () => {
     const { address, signMessage } = controls;
     if (!address || !signMessage) return;
+    if (termsNeeded && !acceptTerms) {
+      setError("Accept the terms to create your account.");
+      return;
+    }
     setError(null);
     try {
       setStep("requesting");
-      const { message } = await postJson<{ message: string }>("/api/auth/challenge", { address });
+      const { message, nonce } = await postJson<{ message: string; nonce: string }>("/api/auth/challenge", { address });
       setStep("signing");
       const signature = await signMessage(new TextEncoder().encode(message));
       setStep("verifying");
-      await postJson("/api/auth/verify", { address, signature: bs58.encode(signature) });
+      await postJson("/api/auth/verify", { nonce, signature: bs58.encode(signature), acceptTerms });
       // Everything cached so far was fetched signed out.
       await queryClient.invalidateQueries();
       announce("Signed in");
       router.replace(next);
     } catch (e) {
       setStep("idle");
+      if (e instanceof SignInError && e.code === TERMS_REQUIRED) {
+        // A wallet Sixth Sense hasn't seen: the challenge is used up, so the player signs again after accepting.
+        setTermsNeeded(true);
+        setError("This wallet doesn't have a Sixth Sense account yet. Accept the terms, then sign again to create one.");
+        return;
+      }
       setError(
         isUserRejection(e)
           ? "You cancelled the signature request. You're not signed in."
@@ -141,9 +166,21 @@ export function WalletSignIn({ mode }: { mode: "sign-in" | "create" }) {
               {shortAddress(controls.address)}
             </span>
           </p>
+          {termsNeeded && (
+            <label className="flex items-start gap-2 text-small">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-accent"
+                checked={acceptTerms}
+                disabled={busy}
+                onChange={(event) => setAcceptTerms(event.target.checked)}
+              />
+              <span>I accept the Sixth Sense terms of use and privacy policy.</span>
+            </label>
+          )}
           {controls.signMessage ? (
             <Button onClick={signIn} loading={busy} className="self-start">
-              {mode === "create" ? "Create account with this wallet" : "Sign in with this wallet"}
+              {mode === "create" || termsNeeded ? "Create account with this wallet" : "Sign in with this wallet"}
             </Button>
           ) : (
             <p className="text-small text-signal">This wallet can&apos;t sign messages, so it can&apos;t sign you in.</p>

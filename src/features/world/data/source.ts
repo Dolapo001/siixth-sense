@@ -1,3 +1,4 @@
+import { liveApiEnabled } from "@/lib/api/config";
 import type { LocationDetail, Region, WorldBounds, WorldMarker } from "../types";
 
 /**
@@ -18,8 +19,12 @@ export interface WorldDataSource {
 }
 
 export async function getWorldDataSource(): Promise<WorldDataSource | null> {
-  // Phase 5: return the API-backed source here once the Sixth Sense backend serves world data.
-  // Until then: the pinned GTA VI community map snapshot, served by this app's own /api/world routes.
+  // Geography is the pinned GTA VI community map snapshot, served by this app's own /api/world routes.
+  // With the backend connected, its discoveries are drawn on top.
+  if (liveApiEnabled()) {
+    const { createApiWorldSource } = await import("./api-source");
+    return createApiWorldSource();
+  }
   const { createSnapshotWorldSource } = await import("./snapshot-source");
   return createSnapshotWorldSource();
 }

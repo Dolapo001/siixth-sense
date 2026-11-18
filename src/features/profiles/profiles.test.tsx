@@ -42,7 +42,7 @@ describe("sample profile data", () => {
     const mine = __sample.items.filter((i) => i.contributor.username === "sample_user_1");
     expect(profile.stats.submitted).toBe(mine.length);
     expect(profile.stats.verified).toBe(mine.filter((i) => i.verification === "verified").length);
-    expect(profile.stats.verified).toBeLessThanOrEqual(profile.stats.submitted);
+    expect(profile.stats.verified).toBeLessThanOrEqual(profile.stats.submitted!);
   });
 
   it("weights reputation toward verified work and never goes negative", () => {

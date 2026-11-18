@@ -1,12 +1,14 @@
 import { BedDouble, Car, Factory, Gem, House, Landmark, MapPin, PawPrint, ScanSearch, Store, TrainFront, Trees, type LucideIcon } from "lucide-react";
 
 /*
- * World map layers: kinds of place from the GTA VI landmark data, each
- * switchable on its own. Only the most useful are on at first, so the map
+ * World map layers: shared discoveries, then kinds of place from the GTA VI
+ * landmark data, each switchable on its own. Only the most useful are on at first, so the map
  * isn't flooded with every record.
  */
 
 export const worldLayers = [
+  // Sixth Sense's own data: shared discoveries, from the backend. Every other layer is a kind of place.
+  { id: "discoveries", label: "Discoveries", icon: ScanSearch, defaultOn: true, tags: [] },
   {
     id: "landmarks",
     label: "Landmarks",
@@ -49,7 +51,6 @@ export function layerForTags(tags: readonly string[]): WorldLayerId {
 
 /** Layers the brief calls for that need Sixth Sense's own data. Listed so their absence is explicit. */
 export const upcomingLayers: { label: string; icon: LucideIcon }[] = [
-  { label: "Discoveries", icon: ScanSearch },
   { label: "Collectibles", icon: Gem },
   { label: "Vehicle sightings", icon: Car },
   { label: "Wildlife sightings", icon: PawPrint },

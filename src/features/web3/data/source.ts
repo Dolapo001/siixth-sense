@@ -1,3 +1,4 @@
+import { liveApiEnabled } from "@/lib/api/config";
 import { devMocksEnabled } from "@/lib/api/dev-mocks";
 import type { Page } from "@/features/discoveries/types";
 import type { Attestation, LinkedWallet, Rewards, WalletChallenge, WalletTransaction } from "../types";
@@ -26,7 +27,10 @@ export interface Web3DataSource {
 }
 
 export async function getWeb3DataSource(): Promise<Web3DataSource | null> {
-  // Phase 5: return the API-backed source when the backend exposes wallet, attestation and reward endpoints.
+  if (liveApiEnabled()) {
+    const { createApiWeb3Source } = await import("./api-source");
+    return createApiWeb3Source();
+  }
   if (devMocksEnabled()) {
     const { createMockWeb3Source } = await import("./mock-source");
     return createMockWeb3Source();

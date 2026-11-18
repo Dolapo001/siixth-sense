@@ -11,24 +11,24 @@ function originOf(url: string | undefined) {
   }
 }
 
-/** The backend API and the GTA map tile host, if configured, so the browser may call them. MapLibre fetches tiles. */
-const connectOrigins = [originOf(process.env.NEXT_PUBLIC_API_BASE_URL), originOf(process.env.NEXT_PUBLIC_MAP_TILES_URL)]
-  .filter(Boolean)
-  .join(" ");
+/** The GTA map tile host, if configured: MapLibre fetches tiles. (The backend is reached through /api/backend.) */
+const connectOrigins = originOf(process.env.NEXT_PUBLIC_MAP_TILES_URL);
+/** The backend serves uploaded screenshots itself in development (S3 signed URLs in production are https:). */
+const apiOrigin = originOf(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 /*
  * Content Security Policy without nonces: nonces would force every page to
  * render per request, which cacheComponents / partial prerendering avoid.
  * - worker-src blob: MapLibre's web worker.
- * - img-src https: screenshots and avatars will come from a host the backend
- *   hasn't named yet; tighten this once it's known.
+ * - img-src https: screenshots come from the backend's storage (signed S3
+ *   URLs in production); tighten this once the bucket host is known.
  * - style-src 'unsafe-inline': Motion and MapLibre set inline styles.
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  `img-src 'self' data: blob: https: ${apiOrigin}`.trim(),
   "font-src 'self'",
   `connect-src 'self' ${connectOrigins}`.trim(),
   "worker-src 'self' blob:",

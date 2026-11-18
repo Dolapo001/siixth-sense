@@ -6,7 +6,7 @@ import type { DiscoveryCategory } from "@/features/world/types";
  * contract exists.
  */
 
-export type ContributionStats = {
+export type ContributionCounts = {
   /** Everything the contributor has shared, verified or not. */
   submitted: number;
   /** Shared discoveries the community has verified. */
@@ -15,6 +15,9 @@ export type ContributionStats = {
   reviews: number;
   comments: number;
 };
+
+/** As shown on a profile: null where the player keeps that number private. */
+export type ContributionStats = { [K in keyof ContributionCounts]: ContributionCounts[K] | null };
 
 export type AreaActivity = { name: string; discoveries: number; verified: number };
 

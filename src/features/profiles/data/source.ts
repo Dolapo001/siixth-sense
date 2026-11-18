@@ -1,3 +1,4 @@
+import { liveApiEnabled } from "@/lib/api/config";
 import { devMocksEnabled } from "@/lib/api/dev-mocks";
 import type {
   Leaderboard,
@@ -26,7 +27,10 @@ export interface ProfileDataSource {
 }
 
 export async function getProfileDataSource(): Promise<ProfileDataSource | null> {
-  // Phase 5: return the API-backed source when the backend exposes profile endpoints.
+  if (liveApiEnabled()) {
+    const { createApiProfileSource } = await import("./api-source");
+    return createApiProfileSource();
+  }
   if (devMocksEnabled()) {
     const { createMockProfileSource } = await import("./mock-source");
     return createMockProfileSource();

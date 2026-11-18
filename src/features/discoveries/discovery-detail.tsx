@@ -134,9 +134,14 @@ function Detail({ discovery, source }: { discovery: DiscoveryDetail; source: Dis
           <p className="flex flex-wrap items-center gap-1.5 text-small text-muted">
             <Avatar name={discovery.contributor.displayName} preset={discovery.contributor.avatarId} size="sm" />
             Shared by{" "}
-            <Link href={`/profile/${discovery.contributor.username}`} className="text-fg underline decoration-fg/40 underline-offset-2 hover:text-accent hover:decoration-accent">
-              {discovery.contributor.displayName}
-            </Link>{" "}
+            {discovery.contributor.username ? (
+              <Link href={`/profile/${discovery.contributor.username}`} className="text-fg underline decoration-fg/40 underline-offset-2 hover:text-accent hover:decoration-accent">
+                {discovery.contributor.displayName}
+              </Link>
+            ) : (
+              // The contributor chose not to be named publicly.
+              <span className="text-fg">{discovery.contributor.displayName}</span>
+            )}{" "}
             on <time dateTime={discovery.submittedAt}>{formatDate(discovery.submittedAt)}</time>
           </p>
           <div className="flex gap-2">

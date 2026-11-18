@@ -1,3 +1,4 @@
+import { liveApiEnabled } from "@/lib/api/config";
 import { devMocksEnabled } from "@/lib/api/dev-mocks";
 import type { Region } from "@/features/world/types";
 import type { DiscoveryQuery } from "../query";
@@ -50,7 +51,10 @@ export class ActionRefusedError extends Error {
 }
 
 export async function getDiscoveryDataSource(): Promise<DiscoveryDataSource | null> {
-  // Phase 5: return the API-backed source when the backend exposes discovery endpoints.
+  if (liveApiEnabled()) {
+    const { createApiDiscoverySource } = await import("./api-source");
+    return createApiDiscoverySource();
+  }
   if (devMocksEnabled()) {
     const { createMockDiscoverySource } = await import("./mock-source");
     return createMockDiscoverySource();

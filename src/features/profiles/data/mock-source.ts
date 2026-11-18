@@ -15,7 +15,7 @@ import { accountFor, presentContributor, profileEdits, sampleAvatarFor } from ".
 import type {
   Achievement,
   AreaActivity,
-  ContributionStats,
+  ContributionCounts,
   LeaderboardEntry,
   LeaderboardPeriod,
   Profile,
@@ -31,11 +31,11 @@ const periodStart: Record<LeaderboardPeriod, (now: number) => number> = {
 };
 
 /** SAMPLE reputation formula. Verified work counts most; rejected work counts against. */
-export function sampleReputation(stats: ContributionStats, rejected: number) {
+export function sampleReputation(stats: ContributionCounts, rejected: number) {
   return Math.max(0, stats.verified * 10 + stats.reviews * 3 + stats.comments - rejected * 5);
 }
 
-type Totals = ContributionStats & {
+type Totals = ContributionCounts & {
   rejected: number;
   regions: Set<string>;
   areas: Map<string, AreaActivity>;
@@ -150,7 +150,7 @@ export function createMockProfileSource(now: () => number = Date.now): ProfileDa
       const totals = tally(0).get(username) ?? emptyTotals();
       const index = contributors.findIndex((c) => c.username === username);
       const joinedAt = new Date(Date.UTC(2026, 9, 1 + Math.max(index, 0) * 3)).toISOString();
-      const stats: ContributionStats = {
+      const stats: ContributionCounts = {
         submitted: totals.submitted,
         verified: totals.verified,
         reviews: totals.reviews,

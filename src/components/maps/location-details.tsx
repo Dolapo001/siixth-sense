@@ -22,7 +22,7 @@ export function LocationDetails({ location, region }: { location: LocationDetail
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <p className="text-small text-muted">{region ? region.name : "Region unknown"}</p>
+        <p className="text-small text-muted">{location.areas?.length ? location.areas.join(" · ") : region ? region.name : "Area unknown"}</p>
         <div className="flex flex-wrap gap-2">
           <VerificationBadge status={location.verification} />
           <LocationPrecisionBadge precision={location.precision} />
@@ -32,6 +32,20 @@ export function LocationDetails({ location, region }: { location: LocationDetail
           {location.precision === "approximate" && location.radius ? ` · ±${location.radius} units` : ""}
         </p>
         <p className="text-small">{location.description}</p>
+        {location.realWorldCounterpart && (
+          <p className="text-small text-muted">
+            <span className="text-fg">Modelled on:</span> {location.realWorldCounterpart}
+          </p>
+        )}
+        {location.tags && location.tags.length > 0 && (
+          <ul aria-label="Kinds" className="flex flex-wrap gap-1.5">
+            {location.tags.map((tag) => (
+              <li key={tag} className="meta rounded-sm border border-border px-1.5 py-0.5 text-muted">
+                {tag}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <Section title="Community activity">
@@ -107,6 +121,30 @@ export function LocationDetails({ location, region }: { location: LocationDetail
           </ul>
         )}
       </Section>
+      {location.source && (
+        <Section title="Source">
+          <p className="text-small text-muted">
+            <a
+              href={location.source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-fg underline decoration-fg/40 underline-offset-2 hover:text-accent"
+            >
+              {location.source.name}
+            </a>{" "}
+            ·{" "}
+            <a
+              href={location.source.licenseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-fg"
+            >
+              {location.source.license}
+            </a>
+          </p>
+          <p className="text-meta text-muted">{location.source.note}</p>
+        </Section>
+      )}
     </div>
   );
 }

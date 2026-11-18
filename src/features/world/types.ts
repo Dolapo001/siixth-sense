@@ -67,7 +67,7 @@ export type LocationDetail = {
   relatedEntities: { id: string; name: string; category: DiscoveryCategory }[];
   activity: { discoveries: number; contributors: number; lastActivityAt: string | null };
   screenshots: { id: string; url: string; alt: string }[];
-  /** Areas from broadest to narrowest are reversed here: nearest first, e.g. ["Washington Beach", "Vice Beach"]. */
+  /** Areas it sits in, nearest first, e.g. ["Washington Beach", "Vice Beach"]. */
   areas?: string[];
   /** Plain-language kinds, e.g. ["hotel", "enterable"]. */
   tags?: string[];

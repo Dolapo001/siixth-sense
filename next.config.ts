@@ -2,14 +2,19 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
-/** Origin of the backend API, if configured, so the browser may call it. */
-function apiOrigin() {
+/** Origin of an absolute URL from the environment, or "" (relative/unset/invalid). */
+function originOf(url: string | undefined) {
   try {
-    return process.env.NEXT_PUBLIC_API_BASE_URL ? new URL(process.env.NEXT_PUBLIC_API_BASE_URL).origin : "";
+    return url && /^https?:\/\//.test(url) ? new URL(url).origin : "";
   } catch {
     return "";
   }
 }
+
+/** The backend API and the GTA map tile host, if configured, so the browser may call them. MapLibre fetches tiles. */
+const connectOrigins = [originOf(process.env.NEXT_PUBLIC_API_BASE_URL), originOf(process.env.NEXT_PUBLIC_MAP_TILES_URL)]
+  .filter(Boolean)
+  .join(" ");
 
 /*
  * Content Security Policy without nonces: nonces would force every page to
@@ -25,7 +30,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self'",
-  `connect-src 'self' ${apiOrigin()}`.trim(),
+  `connect-src 'self' ${connectOrigins}`.trim(),
   "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",

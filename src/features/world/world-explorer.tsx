@@ -87,7 +87,7 @@ type ExplorerData = {
   bounds: WorldBounds;
   regions: Region[];
   markers: WorldMarker[];
-  kind: "sample" | "live";
+  kind: "sample" | "snapshot" | "live";
 };
 
 function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: string | null }) {
@@ -272,10 +272,12 @@ function ExplorerView({ data, selectedId }: { data: ExplorerData; selectedId: st
         </div>
       )}
 
-      {data.kind === "sample" && (
+      {data.kind !== "live" && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center max-md:bottom-auto max-md:top-[6.75rem]">
           <Badge tone="signal" className="bg-midnight/90 backdrop-blur">
-            Sample data · placeholder grid, not the game map
+            {data.kind === "sample"
+              ? "Sample data · placeholder grid, not the game map"
+              : "Unofficial community map · gtadb.org · CC BY 4.0"}
           </Badge>
         </div>
       )}

@@ -8,6 +8,7 @@ import {
   worldToLngLat,
 } from "./coordinates";
 import { createMockWorldSource } from "./data/mock-source";
+import { gtadbTileToMapLibre } from "./gta-projection";
 import { createMarkerIndex, filterMarkers, searchWorld, splitByPlacement } from "./markers";
 import { discoveryCategories, type Region, type WorldBounds, type WorldMarker } from "./types";
 import { locationHref, selectedLocationFromPath } from "./routing";
@@ -27,25 +28,38 @@ const marker = (overrides: Partial<WorldMarker>): WorldMarker => ({
 });
 
 describe("coordinates", () => {
-  it("maps the world centre to lng/lat 0,0", () => {
-    expect(worldToLngLat({ x: 5_000, y: 2_500 }, world)).toEqual([0, 0]);
+  it("maps the game origin to lng/lat 0,0", () => {
+    expect(worldToLngLat({ x: 0, y: 0 })).toEqual([0, 0]);
   });
 
   it("round-trips world → lng/lat → world", () => {
-    const point = { x: 1_234, y: 4_321 };
-    const back = lngLatToWorld(worldToLngLat(point, world), world);
-    expect(back.x).toBeCloseTo(point.x, 6);
-    expect(back.y).toBeCloseTo(point.y, 6);
+    const point = { x: 1_409.4, y: -2_803.2 };
+    const back = lngLatToWorld(worldToLngLat(point));
+    expect(back.x).toBeCloseTo(point.x, 4);
+    expect(back.y).toBeCloseTo(point.y, 4);
   });
 
-  it("keeps aspect ratio and stays within a small span", () => {
-    const [[west, south], [east, north]] = boundsToLngLatBounds(world, world);
-    expect(east - west).toBeCloseTo(0.5);
-    expect(north - south).toBeCloseTo(0.25);
+  it("keeps the whole map on a small patch near the equator", () => {
+    const [[west, south], [east, north]] = boundsToLngLatBounds({ minX: -16_384, minY: -16_384, maxX: 16_384, maxY: 16_384 });
+    expect(east - west).toBeCloseTo(0.3516, 3);
+    expect(north - south).toBeCloseTo(0.3516, 3);
   });
 
   it("puts larger y further north", () => {
-    expect(worldToLngLat({ x: 0, y: 4_000 }, world)[1]).toBeGreaterThan(worldToLngLat({ x: 0, y: 1_000 }, world)[1]);
+    expect(worldToLngLat({ x: 0, y: 4_000 })[1]).toBeGreaterThan(worldToLngLat({ x: 0, y: 1_000 })[1]);
+  });
+
+  it("lines tiles up with markers: the game origin sits on the corner of the centre tiles", () => {
+    // gtadb zoom 5 is 1 px per metre; tile 64 starts at pixel 16,384 = game x 0.
+    const tile = gtadbTileToMapLibre(5, 64, 64);
+    expect(tile).toEqual({ z: 17, x: 2 ** 16, y: 2 ** 16 });
+    // MapLibre tile x = 2^(z-1) is lng 0; tile y = 2^(z-1) is lat 0.
+    expect(worldToLngLat({ x: 0, y: 0 })).toEqual([0, 0]);
+  });
+
+  it("centres the coarsest gtadb tiles in MapLibre's grid", () => {
+    expect(gtadbTileToMapLibre(0, 0, 0)).toEqual({ z: 12, x: 2_046, y: 2_046 });
+    expect(gtadbTileToMapLibre(0, 3, 3)).toEqual({ z: 12, x: 2_049, y: 2_049 });
   });
 
   it("pads bounds on every side", () => {
